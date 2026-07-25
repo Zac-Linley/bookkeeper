@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+
+# Cloudflare
+.wrangler/
+wrangler.toml
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# TypeScript
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# AI assistant
+.reasonix/
+
+# Wrangler account cache (auto-generated)
+**/node_modules/.cache/wrangler/

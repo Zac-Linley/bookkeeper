@@ -1,0 +1,19 @@
+{
+  "name": "@bookkeeper/worker",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@bookkeeper/shared": "workspace:*",
+    "hono": "^4.6.0",
+    "jose": "^5.9.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240722.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^3.78.0"
+  }
+}

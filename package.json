@@ -1,0 +1,10 @@
+{
+  "name": "bookkeeper",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "pnpm -F frontend dev",
+    "dev:worker": "pnpm -F worker dev",
+    "build:frontend": "pnpm -F frontend build",
+    "deploy:worker": "pnpm -F worker deploy"
+  }
+}
