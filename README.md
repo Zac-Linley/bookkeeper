@@ -2,6 +2,47 @@
 
 PWA 移动端记账应用，基于 Cloudflare 免费额度全栈部署，支持多币种、GPS 定位、图片附件、定存管理、二次验证。
 
+```
+<table>
+<tr>
+  <td align="center" width="25%">
+    <img src="png/1.PNG"></a>
+    <br>首页
+  </td>
+  <td align="center" width="25%">
+    <img src="png/2.PNG"></a>
+    <br>账单
+  </td>
+  <td align="center" width="25%">
+    <img src="png/3.PNG"></a>
+    <br>设置
+  </td>
+  <td align="center" width="25%">
+    <img src="png/4.PNG"></a>
+    <br>定存管理
+  </td>
+</tr>
+<tr>
+  <td align="center" width="25%">
+    <img src="png/5.PNG"></a>
+    <br>后台管理
+  </td>
+  <td align="center" width="25%">
+    <img src="png/6.PNG"></a>
+    <br>类别管理
+  </td>
+  <td align="center" width="25%">
+    <img src="png/7.PNG"></a>
+    <br>数据共享
+  </td>
+  <td align="center" width="25%">
+    <img src="png/8.PNG"></a>
+    <br>账户信息
+  </td>
+</tr>
+</table>
+```
+
 ## 功能
 
 | 模块 | 功能 |
@@ -68,7 +109,13 @@ cd packages/worker
 npx wrangler d1 create bookkeeper-db
 ```
 
-将输出的 `database_id` 填入 `wrangler.toml`：
+将输出的 `database_id` 填入配置文件。先复制示例模板（仓库已忽略真实配置避免泄密）：
+
+```bash
+cp wrangler.toml.example wrangler.toml
+```
+
+然后编辑 `wrangler.toml`，将 `database_id` 替换为刚创建的值：
 
 ```toml
 [[d1_databases]]
