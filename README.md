@@ -2,7 +2,6 @@
 
 PWA 移动端记账应用，基于 Cloudflare 免费额度全栈部署，支持多币种、GPS 定位、图片附件、定存管理、二次验证。
 
-```
 <table>
 <tr>
   <td align="center" width="25%">
@@ -41,7 +40,6 @@ PWA 移动端记账应用，基于 Cloudflare 免费额度全栈部署，支持�
   </td>
 </tr>
 </table>
-```
 
 ## 功能
 
