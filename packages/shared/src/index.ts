@@ -40,6 +40,7 @@ export interface Transaction {
   lng?: number;
   is_reimbursable: boolean;
   reimbursed_at?: string;
+  needs_invoice: boolean;
   visibility: Visibility;
   note?: string;
   created_at: string;
@@ -79,6 +80,7 @@ export interface CreateTransactionRequest {
   lat?: number;
   lng?: number;
   is_reimbursable: boolean;
+  needs_invoice: boolean;
   visibility: Visibility;
   note?: string;
 }

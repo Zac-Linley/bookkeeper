@@ -5,7 +5,7 @@ import { api, getToken } from '../lib/api';
 import type { Category, CreateTransactionRequest, TransactionType, Currency } from '@bookkeeper/shared';
 import {
   IconX, IconChevronDown, IconClock, IconMapPin, IconReceipt,
-  IconCamera, IconPhoto, CatIcon,
+  IconCamera, IconPhoto, IconFileInvoice, CatIcon,
 } from '../lib/icons';
 
 interface AttInfo {
@@ -38,6 +38,7 @@ export default function TransactionFormPage() {
   const [lat, setLat] = useState<number | undefined>();
   const [lng, setLng] = useState<number | undefined>();
   const [isReimbursable, setIsReimbursable] = useState(false);
+  const [needsInvoice, setNeedsInvoice] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
 
@@ -87,6 +88,7 @@ export default function TransactionFormPage() {
           setLat(t.lat || undefined);
           setLng(t.lng || undefined);
           setIsReimbursable(!!t.is_reimbursable);
+          setNeedsInvoice(!!t.needs_invoice);
           setNote(t.note || '');
           api.listAttachments(id).then(atts => setExistingAtts(atts || []));
         }
@@ -163,7 +165,7 @@ export default function TransactionFormPage() {
         type, amount: parseFloat(amount), currency, category_id: categoryId,
         occurred_at: new Date(occurredAt).toISOString(),
         location_name: locationName || undefined, lat, lng,
-        is_reimbursable: isReimbursable, visibility: 'personal', note: note || undefined,
+        is_reimbursable: isReimbursable, needs_invoice: needsInvoice, visibility: 'personal', note: note || undefined,
       };
       let txId = id;
       if (isEdit) { await api.updateTransaction(id!, data); }
@@ -265,12 +267,20 @@ export default function TransactionFormPage() {
           </button>
 
           {type === 'expense' && (
-            <button type="button" onClick={() => setIsReimbursable(!isReimbursable)}
-              className={`inline-flex items-center gap-1 border rounded-full px-3 py-1.5 text-xs active:bg-gray-50 transition-colors ${
-                isReimbursable ? 'text-yellow-600 border-yellow-300 bg-yellow-50' : 'text-gray-400 border-gray-200'
-              }`}>
-              <IconReceipt size={14} stroke={1.5} /> {isReimbursable ? '可报销' : '报销'}
-            </button>
+            <>
+              <button type="button" onClick={() => setIsReimbursable(!isReimbursable)}
+                className={`inline-flex items-center gap-1 border rounded-full px-3 py-1.5 text-xs active:bg-gray-50 transition-colors ${
+                  isReimbursable ? 'text-yellow-600 border-yellow-300 bg-yellow-50' : 'text-gray-400 border-gray-200'
+                }`}>
+                <IconReceipt size={14} stroke={1.5} /> {isReimbursable ? '可报销' : '报销'}
+              </button>
+              <button type="button" onClick={() => setNeedsInvoice(!needsInvoice)}
+                className={`inline-flex items-center gap-1 border rounded-full px-3 py-1.5 text-xs active:bg-gray-50 transition-colors ${
+                  needsInvoice ? 'text-blue-600 border-blue-300 bg-blue-50' : 'text-gray-400 border-gray-200'
+                }`}>
+                <IconFileInvoice size={14} stroke={1.5} /> {needsInvoice ? '开发票' : '开发票'}
+              </button>
+            </>
           )}
         </div>
 

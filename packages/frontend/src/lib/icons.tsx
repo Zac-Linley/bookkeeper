@@ -8,7 +8,7 @@ import {
   IconUser, IconShare,
   IconMail, IconLock, IconEye, IconEyeOff,
   IconCheck, IconArrowLeft, IconArrowRight, IconChevronLeft, IconChevronRight,
-  IconPlus, IconHandStop,
+  IconPlus, IconHandStop, IconFileInvoice,
   IconHome, IconShoppingCart, IconDeviceMobile, IconBolt, IconBike,
   IconBus, IconTrain, IconShip, IconBuildingStore, IconBuildingHospital,
   IconSchool, IconBooks, IconDeviceLaptop, IconHeadphones, IconShirt,
@@ -104,5 +104,5 @@ export {
   IconUser, IconShare,
   IconMail, IconLock, IconEye, IconEyeOff, IconWallet,
   IconCheck, IconArrowLeft, IconArrowRight,
-  IconChevronLeft, IconChevronRight, IconPlus,
+  IconChevronLeft, IconChevronRight, IconPlus, IconFileInvoice,
 };

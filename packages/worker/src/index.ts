@@ -365,7 +365,7 @@ transactions.get('/', async (c) => {
 transactions.post('/', async (c) => {
   const body = await c.req.json();
   const userId = getUserId(c);
-  const { type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, visibility, note } = body;
+  const { type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, visibility, note } = body;
 
   if (!type || !amount || !currency || !category_id || !occurred_at) {
     return c.json({ success: false, error: '缺少必填字段' }, 400);
@@ -373,10 +373,10 @@ transactions.post('/', async (c) => {
 
   const id = crypto.randomUUID();
   await c.env.DB.prepare(
-    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, visibility, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, visibility, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(id, userId, type, amount, currency, category_id, occurred_at, location_name || null, lat || null, lng || null,
-    is_reimbursable ? 1 : 0, visibility || 'personal', note || null).run();
+    is_reimbursable ? 1 : 0, needs_invoice ? 1 : 0, visibility || 'personal', note || null).run();
 
   const tx = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();
   return c.json({ success: true, data: tx });
@@ -392,7 +392,7 @@ transactions.put('/:id', async (c) => {
   const fields: string[] = [];
   const params: any[] = [];
 
-  const updatable = ['type', 'amount', 'currency', 'category_id', 'occurred_at', 'location_name', 'lat', 'lng', 'is_reimbursable', 'visibility', 'note'];
+  const updatable = ['type', 'amount', 'currency', 'category_id', 'occurred_at', 'location_name', 'lat', 'lng', 'is_reimbursable', 'needs_invoice', 'visibility', 'note'];
   for (const key of updatable) {
     if (body[key] !== undefined) {
       fields.push(`${key} = ?`);
