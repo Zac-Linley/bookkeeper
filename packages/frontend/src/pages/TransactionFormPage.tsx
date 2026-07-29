@@ -196,7 +196,7 @@ export default function TransactionFormPage() {
       className={`text-center py-2 px-1 rounded-lg text-xs font-medium transition-colors border ${
         categoryId === c.id
           ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-          : 'bg-white text-gray-600 border-gray-200 active:bg-gray-50'
+          : 'bg-white text-gray-600 dark:text-gray-500 border-gray-200 dark:border-gray-700 active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900'
       }`}
     ><span className="flex justify-center mb-0.5"><CatIcon name={c.icon} size={18} /></span>{c.name}</button>
   );
@@ -208,30 +208,30 @@ export default function TransactionFormPage() {
     <div className="space-y-3">
       {/* Top bar */}
       <div className="flex items-center justify-between">
-        <button type="button" onClick={() => navigate(-1)} className="text-gray-400"><IconX size={22} stroke={1.5} /></button>
+        <button type="button" onClick={() => navigate(-1)} className="text-gray-400 dark:text-gray-500"><IconX size={22} stroke={1.5} /></button>
         <span className="font-medium">{isEdit ? '编辑记录' : '记一笔'}</span>
         <span className="w-6" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* Type toggle */}
-        <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+        <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <button type="button" onClick={() => setType('expense')}
-            className={`flex-1 text-center py-2 text-sm font-medium transition-colors ${type === 'expense' ? 'bg-red-50 text-red-600' : 'bg-white text-gray-500'}`}>支出</button>
+            className={`flex-1 text-center py-2 text-sm font-medium transition-colors ${type === 'expense' ? 'bg-red-50 dark:bg-red-900/30 text-red-600' : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400'}`}>支出</button>
           <button type="button" onClick={() => setType('income')}
-            className={`flex-1 text-center py-2 text-sm font-medium transition-colors ${type === 'income' ? 'bg-green-50 text-green-600' : 'bg-white text-gray-500'}`}>收入</button>
+            className={`flex-1 text-center py-2 text-sm font-medium transition-colors ${type === 'income' ? 'bg-green-50 dark:bg-green-900/30 text-green-600' : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400'}`}>收入</button>
         </div>
 
         {/* Amount */}
-        <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2 min-w-0">
+        <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 min-w-0">
           <span className="text-2xl font-medium text-gray-500 mr-2 shrink-0">
             {currency === 'AED' ? <span className="dirham-symbol">ê</span> : CURRENCY_SYMBOLS[currency] || currency}
           </span>
           <input type="number" step="0.01" inputMode="decimal"
-            className="flex-1 text-2xl font-medium outline-none bg-transparent placeholder-gray-300 min-w-0"
+            className="flex-1 text-2xl font-medium outline-none bg-transparent placeholder-gray-300 dark:placeholder-gray-500 min-w-0"
             placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
           <select value={currency} onChange={e => setCurrency(e.target.value as Currency)}
-            className="text-sm text-gray-500 outline-none bg-transparent border-l border-gray-200 pl-2 py-1 shrink-0 w-auto max-w-[4.5rem]">
+            className="text-sm text-gray-500 outline-none bg-transparent border-l border-gray-200 dark:border-gray-700 pl-2 py-1 shrink-0 w-auto max-w-[4.5rem]">
             <option value="AED">AED</option>
             <option value="CNY">CNY</option>
             <option value="USD">USD</option>
@@ -245,7 +245,7 @@ export default function TransactionFormPage() {
         {/* Recent categories */}
         {recentCategories.length > 0 && (
           <div>
-            <p className="text-xs text-gray-400 mb-1.5 ml-0.5">最近使用</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5 ml-0.5">最近使用</p>
             <div className="grid grid-cols-4 gap-2">
               {recentCategories.map(catBtn)}
             </div>
@@ -254,7 +254,7 @@ export default function TransactionFormPage() {
 
         {/* All categories */}
         <div>
-          <p className="text-xs text-gray-400 mb-1.5 ml-0.5">全部分类</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5 ml-0.5">全部分类</p>
           <div className="grid grid-cols-4 gap-2">
             {otherCategories.map(catBtn)}
           </div>
@@ -264,7 +264,7 @@ export default function TransactionFormPage() {
         <div className="flex gap-2 flex-wrap">
           <div className="relative overflow-hidden">
             <button type="button" onClick={() => dtRef.current?.showPicker()}
-              className="inline-flex items-center gap-1 border border-gray-200 rounded-full px-3 py-1.5 text-xs text-gray-600 active:bg-gray-50">
+              className="inline-flex items-center gap-1 border border-gray-200 dark:border-gray-700 rounded-full px-3 py-1.5 text-xs text-gray-600 dark:text-gray-500 active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900">
               <IconClock size={14} stroke={1.5} /> {timeLabel}
             </button>
             <input ref={dtRef} type="datetime-local" value={occurredAt}
@@ -273,21 +273,21 @@ export default function TransactionFormPage() {
           </div>
 
           <button type="button" onClick={handleGetLocation} disabled={gpsLoading}
-            className={`relative z-10 inline-flex items-center gap-1 border border-gray-200 rounded-full px-3 py-1.5 text-xs active:bg-gray-50 ${lat ? 'text-primary-600 border-primary-200 bg-primary-50' : 'text-gray-600'}`}>
+            className={`relative z-10 inline-flex items-center gap-1 border border-gray-200 dark:border-gray-700 rounded-full px-3 py-1.5 text-xs active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900 ${lat ? 'text-primary-600 border-primary-200 bg-primary-50' : 'text-gray-600 dark:text-gray-500'}`}>
             {gpsLoading ? '⏳' : <IconMapPin size={14} stroke={1.5} />} {lat ? '已定位' : '定位'}
           </button>
 
           {type === 'expense' && (
             <>
               <button type="button" onClick={() => setIsReimbursable(!isReimbursable)}
-                className={`inline-flex items-center gap-1 border rounded-full px-3 py-1.5 text-xs active:bg-gray-50 transition-colors ${
-                  isReimbursable ? 'text-yellow-600 border-yellow-300 bg-yellow-50' : 'text-gray-400 border-gray-200'
+                className={`inline-flex items-center gap-1 border rounded-full px-3 py-1.5 text-xs active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900 transition-colors ${
+                  isReimbursable ? 'text-yellow-600 border-yellow-300 bg-yellow-50' : 'text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700'
                 }`}>
                 <IconReceipt size={14} stroke={1.5} /> {isReimbursable ? '可报销' : '报销'}
               </button>
               <button type="button" onClick={() => setNeedsInvoice(!needsInvoice)}
-                className={`inline-flex items-center gap-1 border rounded-full px-3 py-1.5 text-xs active:bg-gray-50 transition-colors ${
-                  needsInvoice ? 'text-blue-600 border-blue-300 bg-blue-50' : 'text-gray-400 border-gray-200'
+                className={`inline-flex items-center gap-1 border rounded-full px-3 py-1.5 text-xs active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900 transition-colors ${
+                  needsInvoice ? 'text-blue-600 border-blue-300 bg-blue-50' : 'text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700'
                 }`}>
                 <IconFileInvoice size={14} stroke={1.5} /> {needsInvoice ? '开发票' : '开发票'}
               </button>
@@ -296,11 +296,11 @@ export default function TransactionFormPage() {
         </div>
 
         {/* Attachments — compact */}
-        <div className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
+        <div className="flex items-center justify-between border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
           <span className="text-xs text-gray-500">附件({allAtts})</span>
           <div className="flex gap-3">
-            <button type="button" onClick={handleCamera} className="text-gray-400 active:text-gray-600"><IconCamera size={20} stroke={1.5} /></button>
-            <button type="button" onClick={handleGallery} className="text-gray-400 active:text-gray-600"><IconPhoto size={20} stroke={1.5} /></button>
+            <button type="button" onClick={handleCamera} className="text-gray-400 dark:text-gray-500 active:text-gray-600 dark:text-gray-500"><IconCamera size={20} stroke={1.5} /></button>
+            <button type="button" onClick={handleGallery} className="text-gray-400 dark:text-gray-500 active:text-gray-600 dark:text-gray-500"><IconPhoto size={20} stroke={1.5} /></button>
           </div>
         </div>
 
@@ -308,23 +308,23 @@ export default function TransactionFormPage() {
         {(existingAtts.length > 0 || pendingFiles.length > 0) && (
           <div className="flex gap-2 flex-wrap">
             {existingAtts.map(att => (
-              <div key={att.id} className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
+              <div key={att.id} className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 cursor-pointer"
                 onClick={() => existingPreviews[att.id] && setLightbox(existingPreviews[att.id])}>
                 {existingPreviews[att.id] ? (
                   <img src={existingPreviews[att.id]} alt="" className="w-full h-full object-cover" />
                 ) : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">...</div>}
                 <button type="button" onClick={(e) => { e.stopPropagation(); removeExistingAtt(att.id); }}
-                  className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white rounded-bl text-[10px] flex items-center justify-center">×</button>
+                  className="absolute top-0 right-0 w-4 h-4 bg-red-500 dark:bg-red-600 text-white rounded-bl text-[10px] flex items-center justify-center">×</button>
               </div>
             ))}
             {pendingFiles.map((_, i) => {
               const src = Object.values(pendingPreviews)[i] || '';
               return (
-                <div key={`p-${i}`} className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
+                <div key={`p-${i}`} className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 cursor-pointer"
                   onClick={() => src && setLightbox(src)}>
                   {src ? <img src={src} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">...</div>}
                   <button type="button" onClick={(e) => { e.stopPropagation(); removePendingFile(i); }}
-                    className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white rounded-bl text-[10px] flex items-center justify-center">×</button>
+                    className="absolute top-0 right-0 w-4 h-4 bg-red-500 dark:bg-red-600 text-white rounded-bl text-[10px] flex items-center justify-center">×</button>
                 </div>
               );
             })}
@@ -332,21 +332,21 @@ export default function TransactionFormPage() {
         )}
 
         {/* Note */}
-        <input type="text" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-gray-300 placeholder-gray-300"
+        <input type="text" className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm outline-none bg-white dark:bg-gray-900 focus:border-gray-300 placeholder-gray-300 dark:placeholder-gray-500"
           placeholder="备注..." value={note} onChange={e => setNote(e.target.value)} />
 
         {error && <p className="text-red-500 text-xs">{error}</p>}
 
         {/* Modification logs */}
         {isEdit && txLogs.length > 0 && (
-          <div className="border border-gray-100 rounded-lg bg-gray-50 overflow-hidden">
+          <div className="border border-gray-100 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-900 overflow-hidden">
             <button type="button" onClick={() => setTxLogsOpen(!txLogsOpen)}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-400 font-medium active:bg-gray-100">
+              className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-400 dark:text-gray-500 font-medium active:bg-gray-100 dark:active:bg-gray-700 dark:bg-gray-800">
               <span>修改记录 ({txLogs.length})</span>
               <span className={`transition-transform ${txLogsOpen ? 'rotate-180' : ''}`}>▼</span>
             </button>
             {txLogsOpen && (
-              <div className="px-3 pb-2 space-y-2 border-t border-gray-100 pt-2">
+              <div className="px-3 pb-2 space-y-2 border-t border-gray-100 dark:border-gray-800 pt-2">
                 {txLogs.map((log) => {
                   const fieldNames: Record<string, string> = {
                   type: '类型', amount: '金额', currency: '币种', category_id: '类别',
@@ -370,12 +370,12 @@ export default function TransactionFormPage() {
                 return (
                   <div key={log.id} className="text-xs text-gray-500 leading-relaxed">
                     <span className="text-gray-300">·</span>{' '}
-                    <span className="font-medium text-gray-700">{log.display_name || '未知用户'}</span>
-                    {' '}修改了 <span className="font-medium text-gray-600">{fieldNames[log.field] || log.field}</span>
-                    <div className="ml-3 text-gray-400">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{log.display_name || '未知用户'}</span>
+                    {' '}修改了 <span className="font-medium text-gray-600 dark:text-gray-500">{fieldNames[log.field] || log.field}</span>
+                    <div className="ml-3 text-gray-400 dark:text-gray-500">
                       <span className="line-through">{fmtVal(log.old_value || '', log.field)}</span>
                       <span className="mx-1">→</span>
-                      <span className="text-gray-600 font-medium">{fmtVal(log.new_value || '', log.field)}</span>
+                      <span className="text-gray-600 dark:text-gray-500 font-medium">{fmtVal(log.new_value || '', log.field)}</span>
                     </div>
                     <span className="text-gray-300 ml-1">{new Date(log.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
@@ -403,10 +403,10 @@ export default function TransactionFormPage() {
       {/* GPS loading overlay */}
       {gpsLoading && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex flex-col items-center gap-3 max-w-xs mx-4">
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center"><span className="text-2xl animate-pulse">📍</span></div>
-            <p className="text-base font-medium text-gray-800">正在获取位置</p>
-            <p className="text-xs text-gray-400 text-center">请允许浏览器获取您的位置信息</p>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl dark:shadow-black/40 px-8 py-6 flex flex-col items-center gap-3 max-w-xs mx-4">
+            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><span className="text-2xl animate-pulse">📍</span></div>
+            <p className="text-base font-medium text-gray-800 dark:text-gray-200">正在获取位置</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center">请允许浏览器获取您的位置信息</p>
             <div className="flex gap-1 mt-1">
               <div className="w-2 h-2 rounded-full bg-primary-400 animate-bounce" style={{ animationDelay: '0ms' }} />
               <div className="w-2 h-2 rounded-full bg-primary-400 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -419,15 +419,15 @@ export default function TransactionFormPage() {
       {/* Upload progress overlay */}
       {uploadProgress.show && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-          <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex flex-col items-center gap-3 max-w-xs mx-4">
-            <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl dark:shadow-black/40 px-8 py-6 flex flex-col items-center gap-3 max-w-xs mx-4">
+            <div className="w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
               <span className="text-xl">📤</span>
             </div>
-            <p className="text-base font-medium text-gray-800">正在保存</p>
-            <p className="text-xs text-gray-400">
+            <p className="text-base font-medium text-gray-800 dark:text-gray-200">正在保存</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
               上传附件 {uploadProgress.current}/{uploadProgress.total}
             </p>
-            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-1">
               <div
                 className="bg-primary-500 h-1.5 rounded-full transition-all duration-300"
                 style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}

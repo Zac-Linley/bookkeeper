@@ -160,12 +160,12 @@ export default function DepositsPage() {
     const isOverdue = daysLeft < 0 && d.status === 'active';
 
     return (
-      <div className={`card ${isOverdue ? 'border-red-200 bg-red-50/30' : isSoon ? 'border-orange-200 bg-orange-50/30' : ''}`}
+      <div className={`card ${isOverdue ? 'border-red-200 bg-red-50/30 dark:bg-red-900/20' : isSoon ? 'border-orange-200 bg-orange-50/30 dark:bg-orange-900/20' : ''}`}
         onClick={() => openEdit(d)}>
         <div className="flex items-start justify-between mb-2">
           <div>
             <p className="text-sm font-medium">{d.name}</p>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-400 dark:text-gray-500">
               {fmt(d.amount)} {d.currency} · {d.interest_rate}% · {
                 d.interest_frequency === 'maturity' ? '到期结息' :
                 d.interest_frequency === 'monthly' ? '月结' :
@@ -175,7 +175,7 @@ export default function DepositsPage() {
           </div>
           <div className="flex items-center gap-1">
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              d.status === 'active' ? (isOverdue ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600') : 'bg-gray-100 text-gray-500'
+              d.status === 'active' ? (isOverdue ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600') : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
             }`}>
               {d.status === 'active' ? (isOverdue ? '已逾期' : '进行中') : '已到期'}
             </span>
@@ -185,11 +185,11 @@ export default function DepositsPage() {
         {/* Progress bar */}
         {d.status === 'active' && (
           <div className="mb-2">
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
               <div className={`h-1.5 rounded-full ${isOverdue ? 'bg-red-400' : isSoon ? 'bg-orange-400' : 'bg-primary-400'}`}
                 style={{ width: `${Math.min(100, progress)}%` }} />
             </div>
-            <p className={`text-[10px] mt-0.5 ${isOverdue ? 'text-red-500' : isSoon ? 'text-orange-500' : 'text-gray-400'}`}>
+            <p className={`text-[10px] mt-0.5 ${isOverdue ? 'text-red-500' : isSoon ? 'text-orange-500' : 'text-gray-400 dark:text-gray-500'}`}>
               {isOverdue ? `已逾期 ${Math.abs(daysLeft)} 天` : `${daysLeft} 天后到期`}
               · {d.start_date} → {d.maturity_date}
             </p>
@@ -227,20 +227,20 @@ export default function DepositsPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
-          <p className="text-[11px] text-gray-400">定存总额</p>
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">定存总额</p>
           <p className="text-base font-semibold">{fmt(totalAmount)}</p>
-          <p className="text-[9px] text-gray-400">等值 {baseCurrency}</p>
+          <p className="text-[9px] text-gray-400 dark:text-gray-500">等值 {baseCurrency}</p>
         </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
-          <p className="text-[11px] text-gray-400">预期利息</p>
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">预期利息</p>
           <p className="text-base font-semibold text-primary-600">{fmt(totalExpected)}</p>
-          <p className="text-[9px] text-gray-400">等值 {baseCurrency}</p>
+          <p className="text-[9px] text-gray-400 dark:text-gray-500">等值 {baseCurrency}</p>
         </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
-          <p className="text-[11px] text-gray-400">即将到期</p>
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">即将到期</p>
           <p className={`text-base font-semibold ${soonCount > 0 ? 'text-orange-500' : ''}`}>{soonCount}</p>
-          <p className="text-[9px] text-gray-400">笔</p>
+          <p className="text-[9px] text-gray-400 dark:text-gray-500">笔</p>
         </div>
       </div>
 
@@ -255,19 +255,19 @@ export default function DepositsPage() {
       {/* Matured deposits */}
       {maturedDeposits.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm text-gray-400">已到期 ({maturedDeposits.length})</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">已到期 ({maturedDeposits.length})</p>
           {maturedDeposits.map(d => <DepositCard key={d.id} d={d} />)}
         </div>
       )}
 
       {deposits.length === 0 && (
-        <p className="text-center text-gray-400 py-10 text-sm">暂无定存记录</p>
+        <p className="text-center text-gray-400 dark:text-gray-500 py-10 text-sm">暂无定存记录</p>
       )}
 
       {/* Add form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={() => resetForm()}>
-          <div className="bg-white rounded-t-2xl w-full max-w-lg p-5 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-t-2xl w-full max-w-lg p-5 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             {/* Drag handle */}
             <div className="flex justify-center -mt-1 mb-2">
               <div className="w-8 h-1 rounded-full bg-gray-300" />
@@ -275,24 +275,24 @@ export default function DepositsPage() {
 
             <div className="flex items-center justify-between">
               <h3 className="font-medium">新建定存</h3>
-              <button type="button" onClick={resetForm} className="text-gray-400 text-lg">×</button>
+              <button type="button" onClick={resetForm} className="text-gray-400 dark:text-gray-500 text-lg">×</button>
             </div>
 
             <form onSubmit={handleCreate} className="space-y-3">
               {/* Name */}
               <div>
-                <p className="text-xs text-gray-400 mb-1">名称</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">名称</p>
                 <input type="text" className="input-sm" placeholder="如：3个月定期" value={name} onChange={e => setName(e.target.value)} required />
               </div>
 
               {/* Amount + Currency */}
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <p className="text-xs text-gray-400 mb-1">金额</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">金额</p>
                   <input type="number" step="0.01" className="input-sm" placeholder="50000" value={amount} onChange={e => setAmount(e.target.value)} required />
                 </div>
                 <div className="w-24">
-                  <p className="text-xs text-gray-400 mb-1">币种</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">币种</p>
                   <select value={currency} onChange={e => setCurrency(e.target.value as any)} className="select-sm">
                     <option value="AED">AED</option>
                     <option value="CNY">CNY</option>
@@ -306,14 +306,14 @@ export default function DepositsPage() {
 
               {/* Rate */}
               <div>
-                <p className="text-xs text-gray-400 mb-1">年利率 (%)</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">年利率 (%)</p>
                 <input type="number" step="0.01" className="input-sm" placeholder="2.68" value={interestRate} onChange={e => setInterestRate(e.target.value)} required />
               </div>
 
               {/* Frequency + Term */}
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <p className="text-xs text-gray-400 mb-1">结息方式</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">结息方式</p>
                   <select value={frequency} onChange={e => setFrequency(e.target.value as InterestFrequency)} className="select-sm">
                     <option value="maturity">到期一次性结息</option>
                     <option value="monthly">每月结息</option>
@@ -322,11 +322,11 @@ export default function DepositsPage() {
                   </select>
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-gray-400 mb-1">存期</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">存期</p>
                   {customTerm ? (
                     <div className="flex gap-1">
                       <input type="number" className="input-sm flex-1" value={customTerm} onChange={e => setCustomTerm(e.target.value)} min={1} placeholder="月数" />
-                      <button type="button" onClick={() => setCustomTerm('')} className="text-gray-400 text-xs px-2">预设</button>
+                      <button type="button" onClick={() => setCustomTerm('')} className="text-gray-400 dark:text-gray-500 text-xs px-2">预设</button>
                     </div>
                   ) : (
                     <select value={termMonths} onChange={e => {
@@ -346,14 +346,14 @@ export default function DepositsPage() {
 
               {/* Start date */}
               <div>
-                <p className="text-xs text-gray-400 mb-1">起始日期</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">起始日期</p>
                 <input type="date" className="input-sm max-w-[240px]" value={startDate} onChange={e => setStartDate(e.target.value)} />
               </div>
 
               {/* Summary */}
-              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-1">本次定存摘要</p>
-                <p className="text-xs text-gray-600">
+              <div className="bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">本次定存摘要</p>
+                <p className="text-xs text-gray-600 dark:text-gray-500">
                   到期日 {maturityDate} · 预期利息 <span className="text-primary-600 font-medium">{expectedInterest} {currency}</span>
                 </p>
               </div>
@@ -369,7 +369,7 @@ export default function DepositsPage() {
 
               {/* Note */}
               <div>
-                <p className="text-xs text-gray-400 mb-1">备注（选填）</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">备注（选填）</p>
                 <input type="text" className="input-sm" placeholder="备注..." value={note} onChange={e => setNote(e.target.value)} />
               </div>
 
@@ -386,22 +386,22 @@ export default function DepositsPage() {
       {/* Edit modal */}
       {editDeposit && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={() => setEditDeposit(null)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-lg p-5 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-t-2xl w-full max-w-lg p-5 space-y-3 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex justify-center -mt-1 mb-2">
               <div className="w-8 h-1 rounded-full bg-gray-300" />
             </div>
             <div className="flex items-center justify-between">
               <h3 className="font-medium">编辑定存</h3>
-              <button type="button" onClick={() => setEditDeposit(null)} className="text-gray-400 text-lg">×</button>
+              <button type="button" onClick={() => setEditDeposit(null)} className="text-gray-400 dark:text-gray-500 text-lg">×</button>
             </div>
 
             <div className="space-y-3">
               <div>
-                <p className="text-xs text-gray-400 mb-1">名称</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">名称</p>
                 <input type="text" className="input-sm" value={name} onChange={e => setName(e.target.value)} />
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-1">备注</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">备注</p>
                 <input type="text" className="input-sm" value={note} onChange={e => setNote(e.target.value)} />
               </div>
               <div className="flex gap-3 pt-1">

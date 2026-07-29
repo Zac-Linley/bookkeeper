@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AuthPage from './pages/AuthPage';
@@ -53,6 +54,17 @@ function AppRoutes() {
 }
 
 export default function App() {
+  // Dark mode: follow system preference
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const update = (e: MediaQueryListEvent | MediaQueryList) => {
+      document.documentElement.classList.toggle('dark', e.matches);
+    };
+    update(mq);
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   return (
     <AuthProvider>
       <AppRoutes />

@@ -49,16 +49,16 @@ export default function DashboardPage() {
     <div className="space-y-3">
       {/* Month selector */}
       <div className="flex items-center justify-between">
-        <button onClick={prevMonth} className="text-gray-400"><IconChevronLeft size={20} stroke={1.5} /></button>
-        <span className="text-sm font-medium text-gray-700">{year}年{month}月 · {base}</span>
-        <button onClick={nextMonth} className="text-gray-400"><IconChevronRight size={20} stroke={1.5} /></button>
+        <button onClick={prevMonth} className="text-gray-400 dark:text-gray-500"><IconChevronLeft size={20} stroke={1.5} /></button>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{year}年{month}月 · {base}</span>
+        <button onClick={nextMonth} className="text-gray-400 dark:text-gray-500"><IconChevronRight size={20} stroke={1.5} /></button>
       </div>
 
       {/* Rate bar — collapsible */}
       {summary?.exchange_rates && summary.exchange_rates.length > 0 && (
         <div>
           <button onClick={() => setRateOpen(!rateOpen)}
-            className="w-full flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500">
+            className="w-full flex items-center gap-2 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-500">
             <span className="font-medium">💱</span>
             {summary.exchange_rates.slice(0, rateOpen ? 10 : 1).map(r => (
               <span key={r.from + r.to}>1 {r.from} ≈ {r.rate.toFixed(4)} {r.to}</span>
@@ -72,27 +72,27 @@ export default function DashboardPage() {
 
       {/* 3-card summary */}
       <div className="grid grid-cols-3 gap-2">
-        <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
-          <p className="text-[11px] text-gray-400 mb-1">支出</p>
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">支出</p>
           <p className="text-base font-semibold text-expense">{fmt(summary?.total_expense || 0)}</p>
-          <p className="text-[9px] text-gray-400">等值 {base}</p>
+          <p className="text-[9px] text-gray-400 dark:text-gray-500">等值 {base}</p>
         </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
-          <p className="text-[11px] text-gray-400 mb-1">收入</p>
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">收入</p>
           <p className="text-base font-semibold text-income">{fmt(summary?.total_income || 0)}</p>
-          <p className="text-[9px] text-gray-400">等值 {base}</p>
+          <p className="text-[9px] text-gray-400 dark:text-gray-500">等值 {base}</p>
         </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
-          <p className="text-[11px] text-gray-400 mb-1">结余</p>
+        <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-3 text-center">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">结余</p>
           <p className={`text-base font-semibold ${(summary?.balance || 0) >= 0 ? 'text-primary-600' : 'text-expense'}`}>
             {fmt(summary?.balance || 0)}
           </p>
-          <p className="text-[9px] text-gray-400">等值 {base}</p>
+          <p className="text-[9px] text-gray-400 dark:text-gray-500">等值 {base}</p>
         </div>
       </div>
 
       {/* Chart section */}
-      <div className="bg-gray-50 rounded-xl p-3">
+      <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3">
         {/* Tab toggle */}
         <div className="flex gap-1 mb-3">
           <button onClick={() => setChartTab('expense')}
@@ -127,15 +127,15 @@ export default function DashboardPage() {
                 return (
                   <div key={c.category_id} className="flex items-center gap-2 text-xs">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                    <span className="text-gray-700 truncate flex-1">{c.category_name}</span>
-                    <span className="text-gray-400">{pct}%</span>
+                    <span className="text-gray-700 dark:text-gray-300 truncate flex-1">{c.category_name}</span>
+                    <span className="text-gray-400 dark:text-gray-500">{pct}%</span>
                   </div>
                 );
               })}
             </div>
           </div>
         ) : (
-          <p className="text-xs text-gray-400 text-center py-6">暂无数据</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-6">暂无数据</p>
         )}
       </div>
 
@@ -185,13 +185,13 @@ function DepositOverview() {
 
   return (
     <button onClick={() => navigate('/deposits')}
-      className="w-full bg-white border border-gray-200 rounded-xl p-3 text-left active:bg-gray-50 transition-colors">
+      className="w-full bg-white border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-left active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900 transition-colors">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-gray-600 flex items-center gap-1"><IconPigMoney size={14} />定存概览</span>
-        <span className="text-xs text-gray-400">{data.showConverted ? `等值 ${base}` : '原币种'} · 查看 →</span>
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-500 flex items-center gap-1"><IconPigMoney size={14} />定存概览</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500">{data.showConverted ? `等值 ${base}` : '原币种'} · 查看 →</span>
       </div>
       <div className="flex gap-4 text-xs">
-        <span className="text-gray-700">总额 <strong>{data.total.toFixed(0)}</strong></span>
+        <span className="text-gray-700 dark:text-gray-300">总额 <strong>{data.total.toFixed(0)}</strong></span>
         <span className="text-primary-600">预期利息 <strong>{data.expected.toFixed(0)}</strong></span>
         {data.soon > 0 && <span className="text-orange-500 font-medium">{data.soon}笔即将到期</span>}
       </div>

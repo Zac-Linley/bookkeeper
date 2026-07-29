@@ -23,10 +23,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gray-50 dark:bg-gray-900">
       <div className="w-full max-w-sm">
         <h1 className="text-3xl font-bold text-center mb-2 text-primary-700">记账本</h1>
-        <p className="text-center text-gray-500 mb-8">便捷记账，轻松管理</p>
+        <p className="text-center text-gray-500 dark:text-gray-500 mb-8">便捷记账，轻松管理</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
@@ -43,7 +43,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-gray-500 mt-6">
+        <p className="text-center text-gray-500 dark:text-gray-500 mt-6">
           还没有账号？ <Link to="/register" className="text-primary-600 font-medium">注册</Link>
         </p>
       </div>

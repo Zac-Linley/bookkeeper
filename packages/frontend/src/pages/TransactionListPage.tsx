@@ -140,29 +140,29 @@ export default function TransactionListPage() {
       <div className="relative">
         <input type="text" className="input-field pl-9" placeholder="搜索备注、地点、类别..."
           value={searchInput} onChange={e => setSearchInput(e.target.value)} />
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><IconSearch size={16} stroke={1.5} /></span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"><IconSearch size={16} stroke={1.5} /></span>
         {searchInput && (
           <button type="button" onClick={() => setSearchInput('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"><IconX size={16} stroke={1.5} /></button>
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"><IconX size={16} stroke={1.5} /></button>
         )}
       </div>
 
       {/* Date + Type + Sort — same row */}
       <div className="flex gap-1.5 items-center">
-        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden h-10 bg-white flex-1 min-w-0">
+        <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden h-10 bg-white dark:bg-gray-900 flex-1 min-w-0">
           <div className="relative flex-1 min-w-0">
             <button type="button" onClick={() => fromRef.current?.showPicker()}
-              className="px-2 py-2 text-xs text-gray-600 text-left whitespace-nowrap w-full truncate">
+              className="px-2 py-2 text-xs text-gray-600 dark:text-gray-500 text-left whitespace-nowrap w-full truncate">
               {fmtShort(dateFrom)}
             </button>
             <input ref={fromRef} type="date" value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
               className="absolute inset-0 opacity-0 w-full cursor-pointer" />
           </div>
-          <span className="text-gray-300 text-xs px-0.5">—</span>
+          <span className="text-gray-300 dark:text-gray-600 text-xs px-0.5">—</span>
           <div className="relative flex-1 min-w-0">
             <button type="button" onClick={() => toRef.current?.showPicker()}
-              className="px-2 py-2 text-xs text-gray-600 text-left whitespace-nowrap">
+              className="px-2 py-2 text-xs text-gray-600 dark:text-gray-500 text-left whitespace-nowrap">
               {fmtShort(dateTo)}
             </button>
             <input ref={toRef} type="date" value={dateTo}
@@ -193,7 +193,7 @@ export default function TransactionListPage() {
         {(['本月', '上月', '今年'] as const).map(label => (
           <button key={label} type="button"
             onClick={() => { if (label === '本月') setThisMonth(); else if (label === '上月') setLastMonth(); else setThisYear(); }}
-            className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 active:bg-gray-200"
+            className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-500 active:bg-gray-200"
           >{label}</button>
         ))}
       </div>
@@ -201,25 +201,25 @@ export default function TransactionListPage() {
       {loading ? (
         <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>
       ) : transactions.length === 0 ? (
-        <p className="text-center text-gray-400 py-10">{search ? '没有匹配的记录' : '暂无记录'}</p>
+        <p className="text-center text-gray-400 dark:text-gray-500 py-10">{search ? '没有匹配的记录' : '暂无记录'}</p>
       ) : (
         <div className="space-y-2">
           {transactions.map(t => (
             <div key={t.id}
-              className="card flex items-center justify-between cursor-pointer active:bg-gray-50"
+              className="card flex items-center justify-between cursor-pointer active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900"
               onClick={() => navigate(`/transactions/${t.id}/edit`)}
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400"><CatIcon name={catIconMap[t.category_id] || ''} size={16} /></span>
+                  <span className="text-gray-400 dark:text-gray-500"><CatIcon name={catIconMap[t.category_id] || ''} size={16} /></span>
                   <span className="text-sm truncate">
-                    <span className="text-gray-400">{catMap[t.category_id] || '未知'}</span>
-                    {t.note && <span className="text-gray-700"> - {t.note}</span>}
+                    <span className="text-gray-400 dark:text-gray-500">{catMap[t.category_id] || '未知'}</span>
+                    {t.note && <span className="text-gray-700 dark:text-gray-300"> - {t.note}</span>}
                   </span>
-                  {t.is_reimbursable ? <span className="text-xs bg-yellow-100 text-yellow-700 rounded px-1 shrink-0">报销</span> : null}
-                  {t.needs_invoice ? <span className="text-xs bg-blue-100 text-blue-700 rounded px-1 shrink-0">发票</span> : null}
+                  {t.is_reimbursable ? <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 rounded px-1 shrink-0">报销</span> : null}
+                  {t.needs_invoice ? <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 rounded px-1 shrink-0">发票</span> : null}
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                   {fmtDate(t.occurred_at)} · {t.currency}
                   {t.location_name && <span> · {t.location_name}</span>}
                 </p>
@@ -231,7 +231,7 @@ export default function TransactionListPage() {
               </div>
               <button
                 onClick={e => { e.stopPropagation(); handleDelete(t.id); }}
-                className="ml-2 w-6 h-6 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-100 active:bg-red-200 text-xs"
+                className="ml-2 w-6 h-6 flex items-center justify-center rounded-full bg-red-50 dark:bg-red-900/30 text-red-400 hover:bg-red-100 active:bg-red-200 text-xs"
               >×</button>
             </div>
           ))}

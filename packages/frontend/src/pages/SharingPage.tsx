@@ -41,17 +41,17 @@ export default function SharingPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <button onClick={() => navigate(-1)} className="text-gray-400"><IconChevronLeft size={18} stroke={1.5} /></button>
-        <span className="text-sm font-medium text-gray-800">数据共享</span>
+        <button onClick={() => navigate(-1)} className="text-gray-400 dark:text-gray-500"><IconChevronLeft size={18} stroke={1.5} /></button>
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">数据共享</span>
       </div>
 
-      <p className="text-xs text-gray-400">添加共享用户后，对方可查看你的全部记账记录</p>
+      <p className="text-xs text-gray-400 dark:text-gray-500">添加共享用户后，对方可查看你的全部记账记录</p>
 
       {sharedUsers.length > 0 && (
         <div className="space-y-2">
           {sharedUsers.map(u => (
-            <div key={u.id} className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-4 py-3">
-              <span className="text-sm text-gray-700">{u.display_name || u.email}</span>
+            <div key={u.id} className="flex items-center justify-between bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-lg px-4 py-3">
+              <span className="text-sm text-gray-700 dark:text-gray-300">{u.display_name || u.email}</span>
               <button onClick={() => handleRemoveShare(u)} className="text-xs text-red-500 font-medium">移除</button>
             </div>
           ))}

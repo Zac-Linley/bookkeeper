@@ -34,19 +34,19 @@ export default function AccountInfoPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <button onClick={() => navigate(-1)} className="text-gray-400"><IconChevronLeft size={18} stroke={1.5} /></button>
-        <span className="text-sm font-medium text-gray-800">账户信息</span>
+        <button onClick={() => navigate(-1)} className="text-gray-400 dark:text-gray-500"><IconChevronLeft size={18} stroke={1.5} /></button>
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">账户信息</span>
       </div>
 
       <div className="space-y-4">
         <div>
-          <p className="text-xs text-gray-400 mb-1">昵称</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">昵称</p>
           <input type="text" className="input-field" value={displayName}
             onChange={e => setDisplayName(e.target.value)} />
         </div>
 
         <div>
-          <p className="text-xs text-gray-400 mb-1">新密码（不修改则留空）</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">新密码（不修改则留空）</p>
           <input type="password" className="input-field" placeholder="至少6位"
             value={password} onChange={e => setPassword(e.target.value)} minLength={6} />
         </div>

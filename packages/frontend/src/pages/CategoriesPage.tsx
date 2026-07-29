@@ -71,7 +71,7 @@ export default function CategoriesPage() {
   if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>;
 
   const CatGrid = ({ type, cats }: { type: TransactionType; cats: Category[] }) => (
-    <div className="bg-gray-50 rounded-xl p-3">
+    <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3">
       <div className="flex items-center gap-2 mb-2">
         <span className="text-sm font-medium text-gray-500">{type === 'expense' ? '支出类别' : '收入类别'}</span>
       </div>
@@ -80,13 +80,13 @@ export default function CategoriesPage() {
           <div key={c.id}
             className={`relative text-center rounded-lg p-2 ${
               c.is_system
-                ? 'bg-white border border-gray-100'
-                : 'bg-blue-50/50 border border-blue-100'
+                ? 'bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800'
+                : 'bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800'
             }`}
           >
             {!c.is_system && (
               <>
-                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400" />
                 {editMode && (
                   <button type="button" onClick={() => handleDelete(c)}
                     className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center shadow-sm">
@@ -96,14 +96,14 @@ export default function CategoriesPage() {
               </>
             )}
             <span className="flex justify-center mb-1"><CatIcon name={c.icon} size={20} /></span>
-            <p className="text-[10px] text-gray-600 leading-tight">{c.name}</p>
+            <p className="text-[10px] text-gray-600 dark:text-gray-500 leading-tight">{c.name}</p>
           </div>
         ))}
         {/* Add button */}
         <button type="button" onClick={() => openAdd(type)}
-          className="text-center rounded-lg p-2 border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 hover:bg-gray-50 active:bg-gray-100 transition-colors">
-          <IconPlus size={18} className="text-gray-400" stroke={1.5} />
-          <p className="text-[10px] text-gray-400">添加</p>
+          className="text-center rounded-lg p-2 border border-dashed border-gray-300 flex flex-col items-center justify-center gap-1 hover:bg-gray-50 dark:bg-gray-900 active:bg-gray-100 dark:active:bg-gray-700 dark:bg-gray-800 transition-colors">
+          <IconPlus size={18} className="text-gray-400 dark:text-gray-500" stroke={1.5} />
+          <p className="text-[10px] text-gray-400 dark:text-gray-500">添加</p>
         </button>
       </div>
     </div>
@@ -127,8 +127,8 @@ export default function CategoriesPage() {
       {error && <p className="text-red-500 text-xs">{error}</p>}
 
       {editMode && (
-        <p className="text-xs text-gray-400 -mt-2">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 mr-1" />蓝点=自定义类别，点击红色×删除
+        <p className="text-xs text-gray-400 dark:text-gray-500 -mt-2">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 mr-1" />蓝点=自定义类别，点击红色×删除
         </p>
       )}
 
@@ -138,7 +138,7 @@ export default function CategoriesPage() {
       {/* Add modal */}
       {showAdd && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" onClick={() => setShowAdd(false)}>
-          <div className="bg-white rounded-t-2xl w-full max-w-lg p-5 space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-900 rounded-t-2xl w-full max-w-lg p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <h3 className="font-medium text-sm">添加{newType === 'expense' ? '支出' : '收入'}类别</h3>
 
             <form onSubmit={handleAdd} className="space-y-3">
@@ -146,13 +146,13 @@ export default function CategoriesPage() {
                 value={newName} onChange={e => setNewName(e.target.value)} required autoFocus />
 
               <div>
-                <p className="text-xs text-gray-400 mb-2">选择图标</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">选择图标</p>
                 <div className="flex flex-wrap gap-2">
                   {ICON_OPTIONS.map(icon => (
                     <button key={icon} type="button"
                       onClick={() => setNewIcon(icon)}
                       className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-colors ${
-                        newIcon === icon ? 'bg-primary-100 border-primary-400' : 'bg-white border-gray-200 active:bg-gray-50'
+                        newIcon === icon ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-400' : 'bg-white border-gray-200 dark:border-gray-700 active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900'
                       }`}>
                       <CatIcon name={icon} size={18} />
                     </button>

@@ -19,11 +19,11 @@ export default function SettingsPage() {
 
       {/* User avatar + info */}
       <div className="flex items-center gap-3 py-2">
-        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-sm font-medium text-primary-600">
+        <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-sm font-medium text-primary-600">
           {(user?.display_name || '?')[0].toUpperCase()}
         </div>
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-800">{user?.display_name}</p>
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{user?.display_name}</p>
         </div>
         <select
           value={user?.default_currency || 'AED'}
@@ -33,7 +33,7 @@ export default function SettingsPage() {
               await refreshUser();
             } catch {}
           }}
-          className="text-xs text-gray-500 bg-transparent outline-none border border-gray-200 rounded-lg px-2 py-1">
+          className="text-xs text-gray-500 dark:text-gray-500 bg-transparent outline-none border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1">
           <option value="AED">AED</option>
           <option value="CNY">CNY</option>
           <option value="USD">USD</option>
@@ -44,16 +44,16 @@ export default function SettingsPage() {
       </div>
 
       {/* Menu list */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
         {menuItems.map((item, i) => (
           <button key={item.to}
             onClick={() => navigate(item.to)}
-            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors ${
-              i < menuItems.length - 1 ? 'border-b border-gray-100' : ''
+            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:bg-gray-900 active:bg-gray-100 dark:active:bg-gray-700 dark:bg-gray-800 transition-colors ${
+              i < menuItems.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''
             }`}>
-            <item.icon size={18} stroke={1.5} className="text-gray-500" />
-            <span className="text-sm text-gray-800 flex-1">{item.label}</span>
-            {item.desc && <span className="text-xs text-gray-400">{item.desc}</span>}
+            <item.icon size={18} stroke={1.5} className="text-gray-500 dark:text-gray-500" />
+            <span className="text-sm text-gray-800 dark:text-gray-200 flex-1">{item.label}</span>
+            {item.desc && <span className="text-xs text-gray-400 dark:text-gray-500">{item.desc}</span>}
             <IconChevronRight size={14} className="text-gray-300" />
           </button>
         ))}
@@ -61,9 +61,9 @@ export default function SettingsPage() {
         {user?.role === 'admin' && (
           <button
             onClick={() => navigate('/admin')}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors border-t border-gray-100">
-            <IconUserCog size={18} stroke={1.5} className="text-gray-500" />
-            <span className="text-sm text-gray-800 flex-1">管理后台</span>
+            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:bg-gray-900 active:bg-gray-100 dark:active:bg-gray-700 dark:bg-gray-800 transition-colors border-t border-gray-100 dark:border-gray-800">
+            <IconUserCog size={18} stroke={1.5} className="text-gray-500 dark:text-gray-500" />
+            <span className="text-sm text-gray-800 dark:text-gray-200 flex-1">管理后台</span>
             <IconChevronRight size={14} className="text-gray-300" />
           </button>
         )}
@@ -71,7 +71,7 @@ export default function SettingsPage() {
 
       {/* Logout */}
       <button onClick={logout}
-        className="w-full border border-red-200 rounded-xl py-3 text-sm text-red-500 flex items-center justify-center gap-2 active:bg-red-50 transition-colors">
+        className="w-full border border-red-200 rounded-xl py-3 text-sm text-red-500 flex items-center justify-center gap-2 active:bg-red-50 dark:bg-red-900/30 transition-colors">
         <IconLogout size={16} stroke={1.5} />退出登录
       </button>
 

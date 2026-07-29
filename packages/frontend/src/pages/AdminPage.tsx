@@ -72,7 +72,7 @@ export default function AdminPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="font-medium text-sm">开放注册</p>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-400 dark:text-gray-500">
               {config.registration_open === 'true' ? '✅ 开放中' : '⛔ 已关闭'}
             </p>
           </div>
@@ -88,7 +88,7 @@ export default function AdminPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="font-medium text-sm">二次验证</p>
-            <p className="text-xs text-gray-400">登录时发送邮箱验证码</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">登录时发送邮箱验证码</p>
           </div>
           <button onClick={async () => {
             if (config.two_factor_enabled !== 'true') {
@@ -134,10 +134,10 @@ export default function AdminPage() {
       {/* SMTP config */}
       <div className="card">
         <h3 className="font-medium text-sm mb-2">邮件配置</h3>
-        <p className="text-xs text-gray-400 mb-3">使用 Resend（免费100封/天）或 MailChannels 发送验证码</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">使用 Resend（免费100封/天）或 MailChannels 发送验证码</p>
         <div className="space-y-3">
           <div>
-            <p className="text-xs text-gray-400 mb-1">Resend API Key</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">Resend API Key</p>
             <div className="flex gap-2">
               <input type="text" className="input-sm flex-1" placeholder="re_xxxxxxxx"
                 value={config.resend_api_key || ''}
@@ -149,7 +149,7 @@ export default function AdminPage() {
             </div>
           </div>
           <div>
-            <p className="text-xs text-gray-400 mb-1">发件邮箱</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">发件邮箱</p>
             <div className="flex gap-2">
               <input type="email" className="input-sm flex-1" placeholder="noreply@yourdomain.com"
                 value={config.smtp_sender || ''}
@@ -161,7 +161,7 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
-        <p className="text-[10px] text-gray-400 mt-2">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
           优先使用 Resend；未配置则回退到 MailChannels（需域名 SPF）
         </p>
       </div>
@@ -177,19 +177,19 @@ export default function AdminPage() {
                   <p className="text-sm font-medium truncate">{u.display_name}</p>
                   {!!u.disabled && <span className="text-[10px] bg-red-100 text-red-600 rounded px-1.5 py-0.5">已禁用</span>}
                 </div>
-                <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{u.email}</p>
               </div>
               <div className="flex items-center gap-1 ml-2">
                 <button onClick={() => toggleUserRole(u)}
-                  className={`text-[10px] px-2 py-1 rounded-full font-medium ${u.role === 'admin' ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'}`}>
+                  className={`text-[10px] px-2 py-1 rounded-full font-medium ${u.role === 'admin' ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-500'}`}>
                   {u.role === 'admin' ? '管理员' : '用户'}
                 </button>
                 <button onClick={() => toggleDisabled(u)}
-                  className={`text-[10px] px-2 py-1 rounded-full font-medium ${u.disabled ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'}`}>
+                  className={`text-[10px] px-2 py-1 rounded-full font-medium ${u.disabled ? 'bg-green-100 text-green-700' : 'bg-red-50 dark:bg-red-900/30 text-red-500'}`}>
                   {u.disabled ? '启用' : '禁用'}
                 </button>
                 <button onClick={() => handleDeleteUser(u)}
-                  className="text-[10px] px-2 py-1 rounded-full font-medium bg-red-50 text-red-500">
+                  className="text-[10px] px-2 py-1 rounded-full font-medium bg-red-50 dark:bg-red-900/30 text-red-500">
                   删除
                 </button>
               </div>
