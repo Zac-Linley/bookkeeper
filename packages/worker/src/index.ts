@@ -264,12 +264,14 @@ categories.get('/', async (c) => {
   let cats;
   if (type) {
     cats = await c.env.DB.prepare(
-      'SELECT * FROM categories WHERE type = ? AND (is_system = 1 OR created_by = ?) ORDER BY sort_order'
-    ).bind(type, userId).all();
+      `SELECT * FROM categories WHERE type = ? AND (is_system = 1 OR created_by = ?
+       OR created_by IN (SELECT account_owner_id FROM account_members WHERE member_user_id = ?)) ORDER BY sort_order`
+    ).bind(type, userId, userId).all();
   } else {
     cats = await c.env.DB.prepare(
-      'SELECT * FROM categories WHERE is_system = 1 OR created_by = ? ORDER BY sort_order'
-    ).bind(userId).all();
+      `SELECT * FROM categories WHERE is_system = 1 OR created_by = ?
+       OR created_by IN (SELECT account_owner_id FROM account_members WHERE member_user_id = ?) ORDER BY sort_order`
+    ).bind(userId, userId).all();
   }
   return c.json({ success: true, data: cats.results });
 });
@@ -365,18 +367,29 @@ transactions.get('/', async (c) => {
 transactions.post('/', async (c) => {
   const body = await c.req.json();
   const userId = getUserId(c);
-  const { type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, visibility, note } = body;
+  const { type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, visibility, note, idempotency_key } = body;
 
   if (!type || !amount || !currency || !category_id || !occurred_at) {
     return c.json({ success: false, error: '缺少必填字段' }, 400);
   }
 
+  // Idempotency: check if this key was already processed
+  if (idempotency_key) {
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM transactions WHERE idempotency_key = ? AND user_id = ?'
+    ).bind(idempotency_key, userId).first<{ id: string }>();
+    if (existing) {
+      const dup = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(existing.id).first();
+      return c.json({ success: true, data: dup });
+    }
+  }
+
   const id = crypto.randomUUID();
   await c.env.DB.prepare(
-    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, visibility, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, visibility, note, idempotency_key)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(id, userId, type, amount, currency, category_id, occurred_at, location_name || null, lat || null, lng || null,
-    is_reimbursable ? 1 : 0, needs_invoice ? 1 : 0, visibility || 'personal', note || null).run();
+    is_reimbursable ? 1 : 0, needs_invoice ? 1 : 0, visibility || 'personal', note || null, idempotency_key || null).run();
 
   const tx = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();
   return c.json({ success: true, data: tx });
@@ -384,11 +397,23 @@ transactions.post('/', async (c) => {
 
 transactions.put('/:id', async (c) => {
   const { id } = c.req.param();
+  const userId = getUserId(c);
   const tx = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first<{ user_id: string }>();
   if (!tx) return c.json({ success: false, error: '记录不存在' }, 404);
-  if (tx.user_id !== getUserId(c)) return c.json({ success: false, error: '无权修改' }, 403);
+
+  // Allow owner and shared members to edit
+  if (tx.user_id !== userId) {
+    const member = await c.env.DB.prepare(
+      'SELECT id FROM account_members WHERE account_owner_id = ? AND member_user_id = ?'
+    ).bind(tx.user_id, userId).first();
+    if (!member) return c.json({ success: false, error: '无权修改' }, 403);
+  }
 
   const body = await c.req.json();
+
+  // Fetch old values for audit log
+  const oldTx = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first<any>();
+
   const fields: string[] = [];
   const params: any[] = [];
 
@@ -405,6 +430,25 @@ transactions.put('/:id', async (c) => {
     params.push(new Date().toISOString());
     params.push(id);
     await c.env.DB.prepare(`UPDATE transactions SET ${fields.join(', ')} WHERE id = ?`).bind(...params).run();
+
+    // Audit log: record each changed field
+    const now = new Date().toISOString();
+    const boolFields = ['is_reimbursable', 'needs_invoice'];
+    for (const key of updatable) {
+      if (body[key] !== undefined) {
+        const oldVal = oldTx?.[key];
+        const newVal = body[key];
+        const oldStr = boolFields.includes(key) ? (oldVal ? '1' : '0') : String(oldVal ?? '');
+        const newStr = boolFields.includes(key) ? (newVal ? '1' : '0') : String(newVal ?? '');
+        if (oldStr !== newStr) {
+          const logId = crypto.randomUUID();
+          await c.env.DB.prepare(
+            `INSERT INTO transaction_logs (id, transaction_id, user_id, field, old_value, new_value, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          ).bind(logId, id, userId, key, oldStr, newStr, now).run();
+        }
+      }
+    }
   }
 
   const updated = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();
@@ -976,5 +1020,31 @@ deposits.post('/:id/mature', async (c) => {
 });
 
 app.route('/api/deposits', deposits);
+
+// Transaction logs
+const txLogs = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+txLogs.use('*', authMiddleware);
+
+txLogs.get('/:transactionId', async (c) => {
+  const { transactionId } = c.req.param();
+  const userId = getUserId(c);
+  // Verify access: owner or shared member
+  const tx = await c.env.DB.prepare(
+    `SELECT id FROM transactions WHERE id = ? AND (user_id = ?
+     OR user_id IN (SELECT account_owner_id FROM account_members WHERE member_user_id = ?))`
+  ).bind(transactionId, userId, userId).first();
+  if (!tx) return c.json({ success: false, error: '记录不存在' }, 404);
+
+  const logs = await c.env.DB.prepare(
+    `SELECT tl.*, u.display_name
+     FROM transaction_logs tl
+     LEFT JOIN users u ON u.id = tl.user_id
+     WHERE tl.transaction_id = ?
+     ORDER BY tl.created_at DESC`
+  ).bind(transactionId).all();
+  return c.json({ success: true, data: logs.results });
+});
+
+app.route('/api/transactions/logs', txLogs);
 
 export default app;

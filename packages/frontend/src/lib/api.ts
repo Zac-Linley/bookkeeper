@@ -76,6 +76,9 @@ export const api = {
   deleteTransaction: (id: string) =>
     request<void>(`/transactions/${id}`, { method: 'DELETE' }),
 
+  getTransactionLogs: (transactionId: string) =>
+    request<import('@bookkeeper/shared').TransactionLog[]>(`/transactions/logs/${transactionId}`),
+
   // Summary
   getSummary: (params?: { year?: number; month?: number }) => {
     const qs = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : '';

@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api, getToken } from '../lib/api';
-import type { Category, CreateTransactionRequest, TransactionType, Currency } from '@bookkeeper/shared';
+import type { Category, CreateTransactionRequest, TransactionType, Currency, TransactionLog } from '@bookkeeper/shared';
+import { CURRENCY_SYMBOLS } from '@bookkeeper/shared';
 import {
   IconX, IconChevronDown, IconClock, IconMapPin, IconReceipt,
   IconCamera, IconPhoto, IconFileInvoice, CatIcon,
@@ -49,7 +50,10 @@ export default function TransactionFormPage() {
   const [pendingPreviews, setPendingPreviews] = useState<Record<string, string>>({});
   const [existingPreviews, setExistingPreviews] = useState<Record<string, string>>({});
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [txLogs, setTxLogs] = useState<TransactionLog[]>([]);
+  const [txLogsOpen, setTxLogsOpen] = useState(false);
   const dtRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
 
   // Load categories + recent
   useEffect(() => {
@@ -91,6 +95,7 @@ export default function TransactionFormPage() {
           setNeedsInvoice(!!t.needs_invoice);
           setNote(t.note || '');
           api.listAttachments(id).then(atts => setExistingAtts(atts || []));
+          api.getTransactionLogs(id).then(logs => setTxLogs(logs || []));
         }
       });
     }
@@ -158,7 +163,9 @@ export default function TransactionFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !categoryId) { setError('金额和类别必填'); return; }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    if (!amount || !categoryId) { setError('金额和类别必填'); submittingRef.current = false; return; }
     setLoading(true); setError('');
     try {
       const data: CreateTransactionRequest = {
@@ -166,6 +173,7 @@ export default function TransactionFormPage() {
         occurred_at: new Date(occurredAt).toISOString(),
         location_name: locationName || undefined, lat, lng,
         is_reimbursable: isReimbursable, needs_invoice: needsInvoice, visibility: 'personal', note: note || undefined,
+        idempotency_key: isEdit ? undefined : `${Date.now()}-${crypto.randomUUID()}`,
       };
       let txId = id;
       if (isEdit) { await api.updateTransaction(id!, data); }
@@ -177,7 +185,7 @@ export default function TransactionFormPage() {
       setUploadProgress({ show: false, current: 0, total: 0 });
       navigate('/transactions');
     } catch (err: any) { setError(err.message || '保存失败'); }
-    finally { setLoading(false); }
+    finally { setLoading(false); submittingRef.current = false; }
   };
 
   const allAtts = existingAtts.length + pendingFiles.length;
@@ -215,12 +223,15 @@ export default function TransactionFormPage() {
         </div>
 
         {/* Amount */}
-        <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2">
+        <div className="flex items-center border border-gray-200 rounded-lg px-3 py-2 min-w-0">
+          <span className="text-2xl font-medium text-gray-500 mr-2 shrink-0">
+            {currency === 'AED' ? <span className="dirham-symbol">ê</span> : CURRENCY_SYMBOLS[currency] || currency}
+          </span>
           <input type="number" step="0.01" inputMode="decimal"
-            className="flex-1 text-2xl font-medium outline-none bg-transparent placeholder-gray-300"
+            className="flex-1 text-2xl font-medium outline-none bg-transparent placeholder-gray-300 min-w-0"
             placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required />
           <select value={currency} onChange={e => setCurrency(e.target.value as Currency)}
-            className="text-sm text-gray-500 outline-none bg-transparent border-l border-gray-200 pl-3 py-1">
+            className="text-sm text-gray-500 outline-none bg-transparent border-l border-gray-200 pl-2 py-1 shrink-0 w-auto max-w-[4.5rem]">
             <option value="AED">AED</option>
             <option value="CNY">CNY</option>
             <option value="USD">USD</option>
@@ -325,6 +336,55 @@ export default function TransactionFormPage() {
           placeholder="备注..." value={note} onChange={e => setNote(e.target.value)} />
 
         {error && <p className="text-red-500 text-xs">{error}</p>}
+
+        {/* Modification logs */}
+        {isEdit && txLogs.length > 0 && (
+          <div className="border border-gray-100 rounded-lg bg-gray-50 overflow-hidden">
+            <button type="button" onClick={() => setTxLogsOpen(!txLogsOpen)}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-400 font-medium active:bg-gray-100">
+              <span>修改记录 ({txLogs.length})</span>
+              <span className={`transition-transform ${txLogsOpen ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+            {txLogsOpen && (
+              <div className="px-3 pb-2 space-y-2 border-t border-gray-100 pt-2">
+                {txLogs.map((log) => {
+                  const fieldNames: Record<string, string> = {
+                  type: '类型', amount: '金额', currency: '币种', category_id: '类别',
+                  occurred_at: '时间', location_name: '地点', lat: '纬度', lng: '经度',
+                  is_reimbursable: '报销', needs_invoice: '开发票', visibility: '可见性', note: '备注',
+                };
+                const catMap = Object.fromEntries(categories.map(c => [c.id, c.name]));
+                const fmtVal = (val: string, field: string) => {
+                  if (field === 'category_id') return catMap[val] || val || '未分类';
+                  if (field === 'type') return val === 'expense' ? '支出' : '收入';
+                  if (field === 'visibility') return val === 'shared' ? '共享' : '个人';
+                  if (field === 'occurred_at') {
+                    const d = new Date(val);
+                    return isNaN(d.getTime()) ? val : d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                  }
+                  if (field === 'currency') return val;
+                  if (field === 'amount') return Number(val).toFixed(2);
+                  if (field === 'is_reimbursable' || field === 'needs_invoice') return val === '1' ? '是' : '否';
+                  return val || '空';
+                };
+                return (
+                  <div key={log.id} className="text-xs text-gray-500 leading-relaxed">
+                    <span className="text-gray-300">·</span>{' '}
+                    <span className="font-medium text-gray-700">{log.display_name || '未知用户'}</span>
+                    {' '}修改了 <span className="font-medium text-gray-600">{fieldNames[log.field] || log.field}</span>
+                    <div className="ml-3 text-gray-400">
+                      <span className="line-through">{fmtVal(log.old_value || '', log.field)}</span>
+                      <span className="mx-1">→</span>
+                      <span className="text-gray-600 font-medium">{fmtVal(log.new_value || '', log.field)}</span>
+                    </div>
+                    <span className="text-gray-300 ml-1">{new Date(log.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        )}
 
         <button type="submit" disabled={loading}
           className="btn-primary w-full">

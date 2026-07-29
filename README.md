@@ -47,12 +47,12 @@ PWA 移动端记账应用，基于 Cloudflare 免费额度全栈部署，支持�
 | 模块 | 功能 |
 |------|------|
 | 认证 | 注册/登录（可控开关）、JWT、邮箱 2FA（Resend）、受信任设备免验证 |
-| 记账 | 收支 CRUD、类别网格选择、GPS 自动定位 + 反向地理编码、图片附件（R2 存储、拍照/相册、灯箱预览）、报销标记 |
+| 记账 | 收支 CRUD、类别网格选择、GPS 自动定位 + 反向地理编码、图片附件（R2 存储、拍照/相册、灯箱预览）、报销标记、开发票标记 |
 | 首页 | 月份切换、多币种汇总（统一换算）、可折叠汇率条、支出/收入环形图 + 图例、定存概览 |
-| 账单 | 日期范围筛选、关键字搜索、排序、CSV 导出、分类图标 |
+| 账单 | 日期范围筛选、关键字搜索、排序、CSV 导出、分类图标、修改记录追踪 |
 | 定存 | 多币种、4 种结息方式（到期/月结/季结/预付）、360 天计息、到期提现自动记账、统一货币统计 |
 | 类别管理 | 网格布局、系统预设 + 自定义、60+ Tabler 图标可选 |
-| 设置 | 二级菜单、账户信息编辑、数据共享（家人互看记账）、默认货币切换、注销账户 |
+| 设置 | 二级菜单、账户信息编辑、数据共享（家人互看编辑记账、类别同步）、默认货币切换、注销账户 |
 | 管理后台 | 注册开关、2FA 开关（开启需邮箱验证）、邮件配置（Resend API Key）、用户角色/禁用/删除 |
 
 ## 技术栈
@@ -80,7 +80,7 @@ bookkeeper/
 │   │       └── lib/         # api.ts, icons.tsx
 │   └── worker/          # Cloudflare Worker API
 │       ├── src/index.ts          # 全部路由（8 组）
-│       └── migrations/           # D1 数据库迁移（6 个）
+│       └── migrations/           # D1 数据库迁移（8 个）
 ├── pnpm-workspace.yaml
 └── package.json
 ```
@@ -138,6 +138,8 @@ npx wrangler d1 execute bookkeeper-db --file=./migrations/0003_fixed_deposits.sq
 npx wrangler d1 execute bookkeeper-db --file=./migrations/0004_two_factor.sql --remote
 npx wrangler d1 execute bookkeeper-db --file=./migrations/0005_resend.sql --remote
 npx wrangler d1 execute bookkeeper-db --file=./migrations/0006_device_trust.sql --remote
+npx wrangler d1 execute bookkeeper-db --file=./migrations/0007_needs_invoice.sql --remote
+npx wrangler d1 execute bookkeeper-db --file=./migrations/0008_audit_log.sql --remote
 ```
 
 ### 5. 设置 JWT 密钥
@@ -162,6 +164,10 @@ npx wrangler pages deploy dist --project-name bookkeeper
 ```
 
 部署完成后访问 Pages 提供的域名（如 `https://bookkeeper-xxx.pages.dev`）。
+
+> **注意**：前端通过环境变量 `VITE_API_BASE` 指定 Worker API 地址。Pages 部署时需在 Cloudflare Dashboard → 项目 Settings → Environment variables 中设置：
+> - `VITE_API_BASE` = `https://bookkeeper-api.你的域名.workers.dev/api`
+> - `NODE_VERSION` = `22`
 
 ### 8. 可选：配置 2FA 邮件
 

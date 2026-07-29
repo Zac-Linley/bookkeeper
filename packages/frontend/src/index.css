@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* UAE Dirham Symbol font */
+@font-face {
+  font-family: 'UAESymbol';
+  src: url('/fonts/uae-symbol.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.dirham-symbol {
+  font-family: 'UAESymbol';
+}
+
 @layer base {
   body {
     -webkit-tap-highlight-color: transparent;

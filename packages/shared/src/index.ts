@@ -9,6 +9,35 @@ export const INCOME_CATEGORIES = ['工资','红包','其他'] as const;
 export const CURRENCIES = ['AED','CNY','USD','EUR','GBP','JPY'] as const;
 export type Currency = typeof CURRENCIES[number];
 
+export const CURRENCY_SYMBOLS: Record<string, string> = {
+  AED: 'DH',
+  CNY: '¥',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+};
+
+export const CURRENCY_CODES: Record<string, string> = {
+  AED: 'AED',
+  CNY: 'CNY',
+  USD: 'USD',
+  EUR: 'EUR',
+  GBP: 'GBP',
+  JPY: 'JPY',
+};
+
+export interface TransactionLog {
+  id: string;
+  transaction_id: string;
+  user_id: string;
+  field: string;
+  old_value?: string;
+  new_value?: string;
+  created_at: string;
+  display_name?: string;
+}
+
 // ---- API types ----
 export interface UserInfo {
   id: string;
@@ -83,6 +112,7 @@ export interface CreateTransactionRequest {
   needs_invoice: boolean;
   visibility: Visibility;
   note?: string;
+  idempotency_key?: string;
 }
 
 export interface UpdateTransactionRequest extends Partial<CreateTransactionRequest> {}

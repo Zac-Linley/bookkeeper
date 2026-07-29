@@ -83,14 +83,15 @@ export default function TransactionListPage() {
   const fmt = (n: number) => n.toFixed(2);
 
   const handleExport = () => {
-    const header = '日期,类型,类别,金额,币种,报销,备注,地点\n';
+    const header = '日期,类型,类别,金额,币种,报销,发票,备注,地点\n';
     const rows = transactions.map(t => {
       const date = fmtDate(t.occurred_at);
       const cname = catMap[t.category_id] || '未知';
       const reimbursable = t.is_reimbursable ? '是' : '否';
+      const invoice = t.needs_invoice ? '是' : '否';
       const note = (t.note || '').replace(/,/g, '，');
       const loc = (t.location_name || '').replace(/,/g, '，');
-      return `${date},${t.type === 'expense' ? '支出' : '收入'},${cname},${t.amount},${t.currency},${reimbursable},${note},${loc}`;
+      return `${date},${t.type === 'expense' ? '支出' : '收入'},${cname},${t.amount},${t.currency},${reimbursable},${invoice},${note},${loc}`;
     }).join('\n');
 
     const BOM = '\uFEFF';
@@ -212,6 +213,7 @@ export default function TransactionListPage() {
                     {t.note && <span className="text-gray-700"> - {t.note}</span>}
                   </span>
                   {t.is_reimbursable ? <span className="text-xs bg-yellow-100 text-yellow-700 rounded px-1 shrink-0">报销</span> : null}
+                  {t.needs_invoice ? <span className="text-xs bg-blue-100 text-blue-700 rounded px-1 shrink-0">发票</span> : null}
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
                   {fmtDate(t.occurred_at)} · {t.currency}
