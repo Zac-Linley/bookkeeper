@@ -457,9 +457,17 @@ transactions.put('/:id', async (c) => {
 
 transactions.delete('/:id', async (c) => {
   const { id } = c.req.param();
+  const userId = getUserId(c);
   const tx = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first<{ user_id: string }>();
   if (!tx) return c.json({ success: false, error: '记录不存在' }, 404);
-  if (tx.user_id !== getUserId(c)) return c.json({ success: false, error: '无权删除' }, 403);
+
+  // Allow owner and shared members to delete
+  if (tx.user_id !== userId) {
+    const member = await c.env.DB.prepare(
+      'SELECT id FROM account_members WHERE account_owner_id = ? AND member_user_id = ?'
+    ).bind(tx.user_id, userId).first();
+    if (!member) return c.json({ success: false, error: '无权删除' }, 403);
+  }
 
   await c.env.DB.prepare('DELETE FROM transactions WHERE id = ?').bind(id).run();
   return c.json({ success: true });

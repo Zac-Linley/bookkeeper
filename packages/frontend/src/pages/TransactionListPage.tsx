@@ -60,8 +60,12 @@ export default function TransactionListPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('确定删除这条记录？')) return;
-    await api.deleteTransaction(id);
-    fetchData();
+    try {
+      await api.deleteTransaction(id);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message || '删除失败');
+    }
   };
 
   const setThisMonth = () => {
