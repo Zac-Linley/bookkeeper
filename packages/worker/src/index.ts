@@ -355,6 +355,7 @@ transactions.get('/', async (c) => {
   if (sort_by === 'amount') orderBy = `ORDER BY t.amount ${dir}`;
   else if (sort_by === 'category') orderBy = `ORDER BY (SELECT c.name FROM categories c WHERE c.id = t.category_id) ${dir}, t.occurred_at DESC`;
   else if (sort_by === 'occurred_at') orderBy = `ORDER BY t.occurred_at ${dir}`;
+  else if (sort_by === 'created_at') orderBy = `ORDER BY t.created_at ${dir}`;
 
   const total = await c.env.DB.prepare(`SELECT COUNT(*) as count FROM transactions t ${where}`).bind(...params).first<{ count: number }>();
   const rows = await c.env.DB.prepare(

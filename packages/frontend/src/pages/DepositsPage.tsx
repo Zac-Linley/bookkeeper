@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { IconPencil, IconTrash, IconPlus } from '@tabler/icons-react';
 import type { FixedDeposit, CreateDepositRequest, InterestFrequency } from '@bookkeeper/shared';
+import { toLocalDateStr } from '../lib/dates';
 
 interface DepositWithInterest extends FixedDeposit {
   total_interest_paid?: number;
@@ -85,7 +86,7 @@ export default function DepositsPage() {
   const resetForm = () => {
     setName(''); setAmount(''); setInterestRate(''); setNote('');
     setFrequency('maturity'); setTermMonths(12);
-    setStartDate(new Date().toISOString().slice(0, 10));
+    setStartDate(toLocalDateStr(new Date()));
     setShowForm(false); setMsg('');
   };
 

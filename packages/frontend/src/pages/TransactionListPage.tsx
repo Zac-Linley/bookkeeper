@@ -6,6 +6,8 @@ import { IconDownload } from '@tabler/icons-react';
 import { CatIcon } from '../lib/icons';
 import type { Transaction, Category } from '@bookkeeper/shared';
 
+import { toLocalDateStr } from '../lib/dates';
+
 export default function TransactionListPage() {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -15,13 +17,16 @@ export default function TransactionListPage() {
   const [type, setType] = useState<string>('');
 
   const now = new Date();
-  const [dateFrom, setDateFrom] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
-  const [dateTo, setDateTo] = useState(() => new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10));
+  const [dateFrom, setDateFrom] = useState(() => toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 1)));
+  const [dateTo, setDateTo] = useState(() => toLocalDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
 
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [sortBy, setSortBy] = useState('occurred_at');
+  const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const fromRef = useRef<HTMLInputElement>(null);
   const toRef = useRef<HTMLInputElement>(null);
@@ -36,8 +41,10 @@ export default function TransactionListPage() {
     });
   }, []);
 
-  const fetchData = useCallback(() => {
-    setLoading(true);
+  const fetchData = useCallback((pageNum: number = 1, append: boolean = false) => {
+    const isFresh = pageNum === 1;
+    if (isFresh) setLoading(true);
+    else setLoadingMore(true);
     const params: Record<string, string> = {};
     if (type) params.type = type;
     if (dateFrom) params.date_from = dateFrom;
@@ -45,13 +52,23 @@ export default function TransactionListPage() {
     if (search) params.search = search;
     params.sort_by = sortBy;
     params.sort_order = sortOrder;
+    params.page = String(pageNum);
     params.page_size = '50';
-    api.getTransactions(params)
-      .then(res => setTransactions(Array.isArray(res) ? res : []))
-      .finally(() => setLoading(false));
+    api.getTransactionsWithTotal(params)
+      .then(({ data, total }) => {
+        const items = data || [];
+        if (append) {
+          setTransactions(prev => [...prev, ...items]);
+        } else {
+          setTransactions(items);
+        }
+        setHasMore(pageNum * 50 < total);
+        setPage(pageNum);
+      })
+      .finally(() => { setLoading(false); setLoadingMore(false); });
   }, [type, dateFrom, dateTo, search, sortBy, sortOrder]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(1, false); }, [fetchData]);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput), 300);
@@ -62,7 +79,7 @@ export default function TransactionListPage() {
     if (!confirm('确定删除这条记录？')) return;
     try {
       await api.deleteTransaction(id);
-      fetchData();
+      fetchData(page, false);
     } catch (err: any) {
       alert(err.message || '删除失败');
     }
@@ -70,18 +87,18 @@ export default function TransactionListPage() {
 
   const setThisMonth = () => {
     const d = new Date();
-    setDateFrom(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10));
-    setDateTo(new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10));
+    setDateFrom(toLocalDateStr(new Date(d.getFullYear(), d.getMonth(), 1)));
+    setDateTo(toLocalDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0)));
   };
   const setLastMonth = () => {
     const d = new Date();
-    setDateFrom(new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().slice(0, 10));
-    setDateTo(new Date(d.getFullYear(), d.getMonth(), 0).toISOString().slice(0, 10));
+    setDateFrom(toLocalDateStr(new Date(d.getFullYear(), d.getMonth() - 1, 1)));
+    setDateTo(toLocalDateStr(new Date(d.getFullYear(), d.getMonth(), 0)));
   };
   const setThisYear = () => {
     const d = new Date();
-    setDateFrom(new Date(d.getFullYear(), 0, 1).toISOString().slice(0, 10));
-    setDateTo(new Date(d.getFullYear(), 11, 31).toISOString().slice(0, 10));
+    setDateFrom(toLocalDateStr(new Date(d.getFullYear(), 0, 1)));
+    setDateTo(toLocalDateStr(new Date(d.getFullYear(), 11, 31)));
   };
 
   const fmt = (n: number) => n.toFixed(2);
@@ -181,6 +198,8 @@ export default function TransactionListPage() {
           const [by, order] = e.target.value.split('-');
           setSortBy(by); setSortOrder(order);
         }} className="select-sm !w-auto shrink-0">
+          <option value="created_at-desc">创建↓</option>
+          <option value="created_at-asc">创建↑</option>
           <option value="occurred_at-desc">时间↓</option>
           <option value="occurred_at-asc">时间↑</option>
           <option value="amount-desc">金额↓</option>
@@ -236,6 +255,12 @@ export default function TransactionListPage() {
             </div>
           ))}
         </div>
+      )}
+      {!loading && hasMore && (
+        <button type="button" onClick={() => fetchData(page + 1, true)} disabled={loadingMore}
+          className="w-full py-3 text-sm text-primary-600 font-medium active:text-primary-800 disabled:opacity-50">
+          {loadingMore ? '加载中...' : '加载更多'}
+        </button>
       )}
     </div>
   );

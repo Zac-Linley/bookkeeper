@@ -52,8 +52,33 @@ export default function TransactionFormPage() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [txLogs, setTxLogs] = useState<TransactionLog[]>([]);
   const [txLogsOpen, setTxLogsOpen] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const lbScale = useRef(1);
+  const lbPos = useRef({ x: 0, y: 0 });
+  const lbTouchStart = useRef<{ x: number; y: number; dist: number; scale: number } | null>(null);
+  const [lbZoomPct, setLbZoomPct] = useState(100);
+
+  const updateImgTransform = () => {
+    if (imgRef.current) {
+      imgRef.current.style.transform = `scale(${lbScale.current}) translate(${lbPos.current.x}px, ${lbPos.current.y}px)`;
+    }
+  };
+
+  const lbZoom = (delta: number) => {
+    lbScale.current = Math.max(0.5, Math.min(5, lbScale.current + delta));
+    setLbZoomPct(Math.round(lbScale.current * 100));
+    updateImgTransform();
+  };
+
+  const lbReset = () => {
+    lbScale.current = 1;
+    lbPos.current = { x: 0, y: 0 };
+    setLbZoomPct(100);
+    updateImgTransform();
+  };
   const dtRef = useRef<HTMLInputElement>(null);
   const submittingRef = useRef(false);
+  const timeEdited = useRef(false);
 
   // Load categories + recent
   useEffect(() => {
@@ -87,7 +112,7 @@ export default function TransactionFormPage() {
           setAmount(String(t.amount));
           setCurrency(t.currency as Currency);
           setCategoryId(t.category_id);
-          setOccurredAt(t.occurred_at.slice(0, 16));
+          setOccurredAt((() => { const d = new Date(t.occurred_at); const p = (n: number) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })());
           setLocationName(t.location_name || '');
           setLat(t.lat || undefined);
           setLng(t.lng || undefined);
@@ -176,7 +201,11 @@ export default function TransactionFormPage() {
         idempotency_key: isEdit ? undefined : `${Date.now()}-${crypto.randomUUID()}`,
       };
       let txId = id;
-      if (isEdit) { await api.updateTransaction(id!, data); }
+      if (isEdit) {
+        const upd: Record<string, any> = { ...data };
+        if (!timeEdited.current) delete upd.occurred_at;
+        await api.updateTransaction(id!, upd);
+      }
       else { const created = await api.createTransaction(data); txId = (created as any).id; }
       for (let i = 0; i < pendingFiles.length; i++) {
         setUploadProgress({ show: true, current: i + 1, total: pendingFiles.length });
@@ -268,7 +297,7 @@ export default function TransactionFormPage() {
               <IconClock size={14} stroke={1.5} /> {timeLabel}
             </button>
             <input ref={dtRef} type="datetime-local" value={occurredAt}
-              onChange={e => setOccurredAt(e.target.value)}
+              onChange={e => { setOccurredAt(e.target.value); timeEdited.current = true; }}
               className="absolute inset-0 opacity-0 cursor-pointer" />
           </div>
 
@@ -392,11 +421,49 @@ export default function TransactionFormPage() {
         </button>
       </form>
 
-      {/* Lightbox */}
+      {/* Lightbox with zoom & pan */}
       {lightbox && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="" className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
-          <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 w-10 h-10 bg-white/20 rounded-full text-white text-2xl flex items-center justify-center">×</button>
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center select-none"
+          onClick={() => { lbReset(); setLightbox(null); }}>
+          <img ref={imgRef} src={lightbox} alt=""
+            className="max-w-full max-h-full object-contain rounded-lg transition-none"
+            style={{ transform: 'scale(1) translate(0px, 0px)' }}
+            onClick={e => e.stopPropagation()}
+            onWheel={e => { e.preventDefault(); lbZoom(-e.deltaY * 0.005); }}
+            onTouchStart={e => {
+              if (e.touches.length === 2) {
+                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                lbTouchStart.current = { x: 0, y: 0, dist, scale: lbScale.current };
+              } else if (e.touches.length === 1) {
+                lbTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dist: 0, scale: lbScale.current };
+              }
+            }}
+            onTouchMove={e => {
+              if (!lbTouchStart.current) return;
+              if (e.touches.length === 2) {
+                e.preventDefault();
+                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                lbScale.current = Math.max(0.5, Math.min(5, lbTouchStart.current.scale * (dist / lbTouchStart.current.dist)));
+                setLbZoomPct(Math.round(lbScale.current * 100));
+                updateImgTransform();
+              } else if (e.touches.length === 1 && lbScale.current > 1) {
+                const dx = e.touches[0].clientX - lbTouchStart.current.x;
+                const dy = e.touches[0].clientY - lbTouchStart.current.y;
+                lbPos.current = { x: lbPos.current.x + dx * 0.5, y: lbPos.current.y + dy * 0.5 };
+                lbTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dist: 0, scale: lbScale.current };
+                updateImgTransform();
+              }
+            }}
+            onTouchEnd={() => { lbTouchStart.current = null; }}
+          />
+          {/* Top bar */}
+          <div className="absolute top-4 left-4 flex gap-2">
+            <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); lbZoom(0.5); }} className="w-9 h-9 bg-white/20 rounded-full text-white text-lg flex items-center justify-center active:bg-white/30">+</button>
+            <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); lbZoom(-0.5); }} className="w-9 h-9 bg-white/20 rounded-full text-white text-lg flex items-center justify-center active:bg-white/30">−</button>
+            <button onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); lbReset(); }} className="w-9 h-9 bg-white/20 rounded-full text-white text-xs flex items-center justify-center active:bg-white/30">⟲</button>
+          </div>
+          <button onPointerDown={e => e.stopPropagation()} onClick={() => { lbReset(); setLightbox(null); }} className="absolute top-4 right-4 w-9 h-9 bg-white/20 rounded-full text-white text-lg flex items-center justify-center active:bg-white/30">×</button>
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-white/50 bg-black/30 rounded-full px-3 py-1 pointer-events-none">{lbZoomPct}%</div>
         </div>
       )}
 

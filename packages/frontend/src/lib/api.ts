@@ -64,7 +64,17 @@ export const api = {
   // Transactions
   getTransactions: (params?: Record<string, string>) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    return request<import('@bookkeeper/shared').PaginatedResponse<import('@bookkeeper/shared').Transaction>>(`/transactions${qs}`);
+    return request<import('@bookkeeper/shared').Transaction[]>(`/transactions${qs}`);
+  },
+
+  getTransactionsWithTotal: async (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const t = getToken();
+    if (t) headers['Authorization'] = `Bearer ${t}`;
+    const res = await fetch(`${API_BASE}/transactions${qs}`, { headers });
+    const json = await res.json();
+    return { data: json.data as import('@bookkeeper/shared').Transaction[], total: json.total as number };
   },
 
   createTransaction: (data: import('@bookkeeper/shared').CreateTransactionRequest) =>
