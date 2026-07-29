@@ -64,6 +64,7 @@ PWA 移动端记账应用，基于 Cloudflare 免费额度全栈部署，支持�
 - **图表**：recharts（环形图）
 - **邮件**：Resend（优先）/ MailChannels（回退）
 - **包管理**：pnpm workspaces（monorepo）
+- **货币符号**：迪拉姆新符号字体来自 [new-dirham-symbol](https://github.com/abdulrysrr/new-dirham-symbol) | `ê` + UAESymbol 字体
 
 ## 项目结构
 
