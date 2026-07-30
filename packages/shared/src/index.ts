@@ -1,6 +1,5 @@
 // ---- Enums / Constants ----
 export type TransactionType = 'expense' | 'income';
-export type Visibility = 'personal' | 'shared';
 export type UserRole = 'admin' | 'user';
 
 export const EXPENSE_CATEGORIES = ['车辆','餐费','通讯网络','快递','物料','劳保','维修','办公','水电','差旅','其他'] as const;
@@ -70,7 +69,6 @@ export interface Transaction {
   is_reimbursable: boolean;
   reimbursed_at?: string;
   needs_invoice: boolean;
-  visibility: Visibility;
   note?: string;
   created_at: string;
   updated_at: string;
@@ -110,7 +108,6 @@ export interface CreateTransactionRequest {
   lng?: number;
   is_reimbursable: boolean;
   needs_invoice: boolean;
-  visibility: Visibility;
   note?: string;
   idempotency_key?: string;
 }

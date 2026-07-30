@@ -197,7 +197,7 @@ export default function TransactionFormPage() {
         type, amount: parseFloat(amount), currency, category_id: categoryId,
         occurred_at: new Date(occurredAt).toISOString(),
         location_name: locationName || undefined, lat, lng,
-        is_reimbursable: isReimbursable, needs_invoice: needsInvoice, visibility: 'personal', note: note || undefined,
+        is_reimbursable: isReimbursable, needs_invoice: needsInvoice, note: note || undefined,
         idempotency_key: isEdit ? undefined : `${Date.now()}-${crypto.randomUUID()}`,
       };
       let txId = id;
@@ -380,13 +380,12 @@ export default function TransactionFormPage() {
                   const fieldNames: Record<string, string> = {
                   type: '类型', amount: '金额', currency: '币种', category_id: '类别',
                   occurred_at: '时间', location_name: '地点', lat: '纬度', lng: '经度',
-                  is_reimbursable: '报销', needs_invoice: '开发票', visibility: '可见性', note: '备注',
+                  is_reimbursable: '报销', needs_invoice: '开发票', note: '备注',
                 };
                 const catMap = Object.fromEntries(categories.map(c => [c.id, c.name]));
                 const fmtVal = (val: string, field: string) => {
                   if (field === 'category_id') return catMap[val] || val || '未分类';
                   if (field === 'type') return val === 'expense' ? '支出' : '收入';
-                  if (field === 'visibility') return val === 'shared' ? '共享' : '个人';
                   if (field === 'occurred_at') {
                     const d = new Date(val);
                     return isNaN(d.getTime()) ? val : d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });

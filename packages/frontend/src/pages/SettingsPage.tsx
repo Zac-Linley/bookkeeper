@@ -59,6 +59,7 @@ export default function SettingsPage() {
         ))}
 
         {user?.role === 'admin' && (
+          <>
           <button
             onClick={() => navigate('/admin')}
             className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:bg-gray-900 active:bg-gray-100 dark:active:bg-gray-700 dark:bg-gray-800 transition-colors border-t border-gray-100 dark:border-gray-800">
@@ -66,6 +67,15 @@ export default function SettingsPage() {
             <span className="text-sm text-gray-800 dark:text-gray-200 flex-1">管理后台</span>
             <IconChevronRight size={14} className="text-gray-300" />
           </button>
+          <button
+            onClick={() => navigate('/settings/backup')}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:bg-gray-900 active:bg-gray-100 dark:active:bg-gray-700 dark:bg-gray-800 transition-colors border-t border-gray-100 dark:border-gray-800">
+            <IconFolders size={18} stroke={1.5} className="text-gray-500 dark:text-gray-500" />
+            <span className="text-sm text-gray-800 dark:text-gray-200 flex-1">数据备份</span>
+            <span className="text-xs text-gray-400">R2 自动备份</span>
+            <IconChevronRight size={14} className="text-gray-300" />
+          </button>
+          </>
         )}
       </div>
 

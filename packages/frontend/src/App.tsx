@@ -13,6 +13,7 @@ import AccountInfoPage from './pages/AccountInfoPage';
 import SharingPage from './pages/SharingPage';
 import DepositsPage from './pages/DepositsPage';
 import AdminPage from './pages/AdminPage';
+import BackupPage from './pages/BackupPage';
 import BottomNav from './components/BottomNav';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -42,6 +43,7 @@ function AppRoutes() {
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/settings/account" element={<AccountInfoPage />} />
               <Route path="/settings/sharing" element={<SharingPage />} />
+              <Route path="/settings/backup" element={<BackupPage />} />
               <Route path="/deposits" element={<DepositsPage />} />
               <Route path="/admin" element={<AdminPage />} />
             </Routes>

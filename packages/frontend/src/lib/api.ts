@@ -14,6 +14,8 @@ export function getToken() {
   return token;
 }
 
+export { API_BASE };
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -170,4 +172,11 @@ export const api = {
     request<{ interest: number; transaction_id: string }>(`/deposits/${id}/pay-interest`, { method: 'POST' }),
   matureDeposit: (id: string) =>
     request<{ remaining_interest: number }>(`/deposits/${id}/mature`, { method: 'POST' }),
+
+  // Backup
+  getBackups: () =>
+    request<{ filename: string; size: number; uploaded: string }[]>('/backup'),
+
+  createBackup: () =>
+    request<{ filename: string }>('/backup', { method: 'POST' }),
 };

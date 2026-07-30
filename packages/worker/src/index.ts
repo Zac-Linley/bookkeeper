@@ -368,7 +368,7 @@ transactions.get('/', async (c) => {
 transactions.post('/', async (c) => {
   const body = await c.req.json();
   const userId = getUserId(c);
-  const { type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, visibility, note, idempotency_key } = body;
+  const { type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, note, idempotency_key } = body;
 
   if (!type || !amount || !currency || !category_id || !occurred_at) {
     return c.json({ success: false, error: '缺少必填字段' }, 400);
@@ -387,10 +387,10 @@ transactions.post('/', async (c) => {
 
   const id = crypto.randomUUID();
   await c.env.DB.prepare(
-    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, visibility, note, idempotency_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, note, idempotency_key)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(id, userId, type, amount, currency, category_id, occurred_at, location_name || null, lat || null, lng || null,
-    is_reimbursable ? 1 : 0, needs_invoice ? 1 : 0, visibility || 'personal', note || null, idempotency_key || null).run();
+    is_reimbursable ? 1 : 0, needs_invoice ? 1 : 0, note || null, idempotency_key || null).run();
 
   const tx = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();
   return c.json({ success: true, data: tx });
@@ -418,7 +418,7 @@ transactions.put('/:id', async (c) => {
   const fields: string[] = [];
   const params: any[] = [];
 
-  const updatable = ['type', 'amount', 'currency', 'category_id', 'occurred_at', 'location_name', 'lat', 'lng', 'is_reimbursable', 'needs_invoice', 'visibility', 'note'];
+  const updatable = ['type', 'amount', 'currency', 'category_id', 'occurred_at', 'location_name', 'lat', 'lng', 'is_reimbursable', 'needs_invoice', 'note'];
   for (const key of updatable) {
     if (body[key] !== undefined) {
       fields.push(`${key} = ?`);
@@ -886,8 +886,8 @@ deposits.post('/', async (c) => {
       const txId = crypto.randomUUID();
       const now = new Date().toISOString();
       await c.env.DB.prepare(
-        `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note, visibility)
-         VALUES (?, ?, 'income', ?, ?, 'cat-sys-i5', ?, ?, 'personal')`
+        `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note
+         VALUES (?, ?, 'income', ?, ?, 'cat-sys-i5', ?, ?)`
       ).bind(txId, userId, expectedInterest, currency || 'AED', now, `本金${amount}-定存${name}-${interest_rate}%`).run();
       const intId = crypto.randomUUID();
       await c.env.DB.prepare('INSERT INTO deposit_interests (id, deposit_id, amount, date) VALUES (?, ?, ?, ?)')
@@ -901,8 +901,8 @@ deposits.post('/', async (c) => {
   if (create_expense) {
     const txId = crypto.randomUUID();
     await c.env.DB.prepare(
-      `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note, visibility)
-       VALUES (?, ?, 'expense', ?, ?, 'cat-sys-e12', ?, ?, 'personal')`
+      `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note
+       VALUES (?, ?, 'expense', ?, ?, 'cat-sys-e12', ?, ?)`
     ).bind(txId, userId, amount, currency || 'AED', start_date, `定存-${term_months}个月-${interest_rate}%`).run();
   }
 
@@ -969,8 +969,8 @@ deposits.post('/:id/pay-interest', async (c) => {
   const txId = crypto.randomUUID();
   const now = new Date().toISOString();
   await c.env.DB.prepare(
-    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note, visibility)
-     VALUES (?, ?, 'income', ?, ?, 'cat-sys-i5', ?, ?, 'personal')`
+    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note
+     VALUES (?, ?, 'income', ?, ?, 'cat-sys-i5', ?, ?)`
   ).bind(txId, userId, interestAmount, d.currency || 'AED', now, `本金${d.amount}-定期结息-${d.interest_rate}%`).run();
 
   // Record interest payment
@@ -1012,16 +1012,16 @@ deposits.post('/:id/mature', async (c) => {
   if (remainingInterest > 0) {
     const txId = crypto.randomUUID();
     await c.env.DB.prepare(
-      `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note, visibility)
-       VALUES (?, ?, 'income', ?, ?, 'cat-sys-i5', ?, ?, 'personal')`
+      `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note
+       VALUES (?, ?, 'income', ?, ?, 'cat-sys-i5', ?, ?)`
     ).bind(txId, userId, remainingInterest, d.currency, now, `本金${d.amount}-到期利息-${d.interest_rate}%`).run();
   }
 
   // Create principal return transaction
   const principalTxId = crypto.randomUUID();
   await c.env.DB.prepare(
-    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note, visibility)
-     VALUES (?, ?, 'income', ?, ?, 'cat-sys-i4', ?, ?, 'personal')`
+    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, note
+     VALUES (?, ?, 'income', ?, ?, 'cat-sys-i4', ?, ?)`
   ).bind(principalTxId, userId, d.amount, d.currency, now, `本金提现-利息${remainingInterest}`).run();
 
   await c.env.DB.prepare('UPDATE fixed_deposits SET status = ? WHERE id = ?').bind('matured', id).run();
@@ -1055,5 +1055,100 @@ txLogs.get('/:transactionId', async (c) => {
 });
 
 app.route('/api/transactions/logs', txLogs);
+
+// Backup routes
+const backup = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+backup.use('*', authMiddleware);
+
+backup.post('/', async (c) => {
+  if (getUserRole(c) !== 'admin') return c.json({ success: false, error: '需要管理员权限' }, 403);
+  try {
+    const tables = ['users', 'categories', 'transactions', 'attachments', 'exchange_rates',
+      'system_config', 'account_members', 'transaction_logs', 'fixed_deposits', 'deposit_interests', 'device_tokens'];
+    const data: Record<string, any> = {};
+    for (const table of tables) {
+      const rows = await c.env.DB.prepare(`SELECT * FROM ${table}`).all();
+      data[table] = rows.results;
+    }
+    const filename = `backups/${new Date().toISOString().replace(/:/g, '-')}.json`;
+    await c.env.R2.put(filename, JSON.stringify(data, null, 2), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    // Clean up backups older than 30 days
+    const listed = await c.env.R2.list({ prefix: 'backups/' });
+    const cutoff = Date.now() - 30 * 86400000;
+    for (const obj of listed.objects) {
+      if (new Date(obj.uploaded).getTime() < cutoff) {
+        await c.env.R2.delete(obj.key);
+      }
+    }
+    return c.json({ success: true, data: { filename } });
+  } catch (e: unknown) {
+    return c.json({ success: false, error: e instanceof Error ? e.message : '备份失败' }, 500);
+  }
+});
+
+backup.get('/', async (c) => {
+  const userId = getUserId(c);
+  const isAdmin = getUserRole(c) === 'admin';
+  if (!isAdmin) return c.json({ success: false, error: '需要管理员权限' }, 403);
+  const listed = await c.env.R2.list({ prefix: 'backups/' });
+  const files = listed.objects.map(o => ({
+    filename: o.key.replace('backups/', ''),
+    size: o.size,
+    uploaded: o.uploaded,
+  })).sort((a, b) => new Date(b.uploaded).getTime() - new Date(a.uploaded).getTime());
+  return c.json({ success: true, data: files });
+});
+
+// Download backup (no auth middleware — uses query token for new-window download)
+app.get('/api/backup/:filename', async (c) => {
+  const token = c.req.query('token');
+  if (!token) return c.json({ success: false, error: '未登录' }, 401);
+  try {
+    const secret = new TextEncoder().encode(c.env.JWT_SECRET || 'bookkeeper-dev-secret-change-in-production');
+    const { payload } = await jwtVerify(token, secret);
+    if ((payload.role as string) !== 'admin') return c.json({ success: false, error: '需要管理员权限' }, 403);
+  } catch {
+    return c.json({ success: false, error: 'Token无效' }, 401);
+  }
+  const { filename } = c.req.param();
+  const obj = await c.env.R2.get('backups/' + filename);
+  if (!obj) return c.json({ success: false, error: '备份不存在' }, 404);
+  const text = await obj.text();
+  return new Response(text, {
+    headers: { 'Content-Type': 'application/json', 'Content-Disposition': 'attachment; filename="' + filename + '"' },
+  });
+});
+
+app.route('/api/backup', backup);
+
+// Cron trigger: auto backup daily
+app.get('/__cron/backup', async (c) => {
+  try {
+    const tables = ['users', 'categories', 'transactions', 'attachments', 'exchange_rates',
+      'system_config', 'account_members', 'transaction_logs', 'fixed_deposits', 'deposit_interests'];
+    const data: Record<string, any> = {};
+    for (const table of tables) {
+      const rows = await c.env.DB.prepare(`SELECT * FROM ${table}`).all();
+      data[table] = rows.results;
+    }
+    const filename = `backups/${new Date().toISOString().replace(/:/g, '-')}.json`;
+    await c.env.R2.put(filename, JSON.stringify(data, null, 2), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    // Clean up old backups
+    const listed = await c.env.R2.list({ prefix: 'backups/' });
+    const cutoff = Date.now() - 30 * 86400000;
+    for (const obj of listed.objects) {
+      if (new Date(obj.uploaded).getTime() < cutoff) {
+        await c.env.R2.delete(obj.key);
+      }
+    }
+    return c.json({ success: true, message: 'Backup created' });
+  } catch (e: unknown) {
+    return c.json({ success: false, error: e instanceof Error ? e.message : '备份失败' }, 500);
+  }
+});
 
 export default app;
