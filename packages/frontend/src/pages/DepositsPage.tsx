@@ -140,7 +140,9 @@ export default function DepositsPage() {
     return (amount / rateMap[from]) * rateMap[baseCurrency];
   };
 
-  const totalAmount = deposits.reduce((s, d) => s + convert(d.amount, d.currency), 0);
+  // 定存总额只统计进行中的定存，已到期的本金已通过「本金提现」收入回到结余，
+  // 与首页总资产口径保持一致，避免重复计算
+  const totalAmount = activeDeposits.reduce((s, d) => s + convert(d.amount, d.currency), 0);
   const totalExpected = deposits.reduce((s, d) => s + convert(d.expected_interest || 0, d.currency), 0);
   const soonCount = activeDeposits.filter(d => {
     const days = (new Date(d.maturity_date).getTime() - Date.now()) / 86400000;

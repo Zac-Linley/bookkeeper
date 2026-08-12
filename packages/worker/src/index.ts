@@ -2,6 +2,10 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { SignJWT, jwtVerify } from 'jose';
 import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
+import { hashPassword, isPbkdf2Hash, verifyPassword } from './password';
+import { isRateLimited, recordFailure, clearFailures, clientIp } from './rateLimit';
+import { convertAmount, buildDateRateLookup } from './currency';
+import { generateSecret, otpauthUrl, verifyTotp } from './totp';
 
 type Bindings = {
   DB: D1Database;
@@ -16,6 +20,19 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
+// Fail closed: never fall back to a hardcoded secret in any environment.
+function jwtSecret(env: Bindings): string {
+  if (!env.JWT_SECRET) {
+    throw new Error('JWT_SECRET 未配置，请通过 wrangler secret put JWT_SECRET 设置');
+  }
+  return env.JWT_SECRET;
+}
+
+app.onError((err, c) => {
+  console.error(err);
+  return c.json({ success: false, error: err.message || '服务器内部错误' }, 500);
+});
+
 // CORS
 app.use('*', cors({ origin: '*', allowHeaders: ['Content-Type', 'Authorization'], allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'] }));
 
@@ -27,12 +44,13 @@ const authMiddleware = async (c: { env: Bindings; req: { header: (name: string) 
   }
   const token = authHeader.slice(7);
   try {
-    const secret = new TextEncoder().encode(c.env.JWT_SECRET || 'bookkeeper-dev-secret-change-in-production');
+    const secret = new TextEncoder().encode(jwtSecret(c.env));
     const { payload } = await jwtVerify(token, secret);
     c.set('userId', payload.sub as string);
     c.set('userRole', payload.role as string);
     await next();
-  } catch {
+  } catch (e) {
+    if (e instanceof Error && e.message.includes('JWT_SECRET')) throw e;
     return c.json({ success: false, error: '登录已过期' }, 401);
   }
 };
@@ -90,6 +108,11 @@ auth.post('/register', async (c) => {
   if (password.length < 6) {
     return c.json({ success: false, error: '密码至少6位' }, 400);
   }
+  const ip = clientIp(c);
+  // Registration is limited per IP (email varies per attempt and would bypass the lock).
+  if (await isRateLimited(c.env.DB, '', ip, 'register')) {
+    return c.json({ success: false, error: '尝试过于频繁，请15分钟后再试' }, 429);
+  }
 
   const config = await c.env.DB.prepare('SELECT value FROM system_config WHERE key = ?').bind('registration_open').first<{ value: string }>();
   const isOpen = config?.value !== 'false';
@@ -101,6 +124,7 @@ auth.post('/register', async (c) => {
 
   const existing = await c.env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
   if (existing) {
+    await recordFailure(c.env.DB, '', ip, 'register');
     return c.json({ success: false, error: '邮箱已注册' }, 409);
   }
 
@@ -108,18 +132,15 @@ auth.post('/register', async (c) => {
   const isFirst = (userCount?.count || 0) === 0;
   const role = isFirst ? 'admin' : 'user';
 
-  const encoder = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(password + 'bookkeeper-salt'));
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const passwordHash = await hashPassword(password);
 
   await c.env.DB.prepare(
     'INSERT INTO users (id, email, password_hash, display_name, role, default_currency) VALUES (?, ?, ?, ?, ?, ?)'
   ).bind(id, email, passwordHash, display_name, role, 'AED').run();
 
-  const secret = c.env.JWT_SECRET || 'bookkeeper-dev-secret-change-in-production';
+  const secret = jwtSecret(c.env);
   const token = await generateToken(id, role, secret);
-  return c.json({ success: true, data: { token, user: { id, email, display_name: display_name, role, default_currency: 'AED' } } });
+  return c.json({ success: true, data: { token, user: { id, email, display_name: display_name, role, default_currency: 'AED', totp_enabled: false } } });
 });
 
 auth.post('/login', async (c) => {
@@ -128,19 +149,49 @@ auth.post('/login', async (c) => {
   if (!email || !password) {
     return c.json({ success: false, error: '缺少邮箱或密码' }, 400);
   }
+  const ip = clientIp(c);
+  if (await isRateLimited(c.env.DB, email, ip, 'login')) {
+    return c.json({ success: false, error: '失败次数过多，请15分钟后再试' }, 429);
+  }
 
   const user = await c.env.DB.prepare('SELECT * FROM users WHERE email = ? AND disabled = 0').bind(email).first<{
     id: string; email: string; password_hash: string; display_name: string; role: string; default_currency: string;
+    totp_secret: string | null; totp_enabled: number;
   }>();
-  if (!user) return c.json({ success: false, error: '邮箱或密码错误' }, 401);
-
-  const encoder = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(password + 'bookkeeper-salt'));
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-  if (passwordHash !== user.password_hash) {
+  if (!user) {
+    await recordFailure(c.env.DB, email, ip, 'login');
     return c.json({ success: false, error: '邮箱或密码错误' }, 401);
+  }
+
+  const passwordOk = await verifyPassword(password, user.password_hash);
+  if (!passwordOk) {
+    await recordFailure(c.env.DB, email, ip, 'login');
+    return c.json({ success: false, error: '邮箱或密码错误' }, 401);
+  }
+
+  // Upgrade legacy SHA-256 hashes to PBKDF2 on successful login.
+  if (!isPbkdf2Hash(user.password_hash)) {
+    const upgraded = await hashPassword(password);
+    await c.env.DB.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
+      .bind(upgraded, new Date().toISOString(), user.id).run();
+  }
+  await clearFailures(c.env.DB, email, ip, 'login');
+
+  // Per-user TOTP takes precedence over email codes
+  if (user.totp_enabled) {
+    const totpCode = body.totp_code;
+    if (!totpCode) {
+      return c.json({ success: true, data: { two_factor: true, method: 'totp', email: user.email } });
+    }
+    const totpOk = await verifyTotp(user.totp_secret || '', String(totpCode));
+    if (!totpOk) {
+      await recordFailure(c.env.DB, email, ip, '2fa');
+      return c.json({ success: false, error: '验证码无效或已过期' }, 401);
+    }
+    await clearFailures(c.env.DB, email, ip, '2fa');
+    const secret = jwtSecret(c.env);
+    const token = await generateToken(user.id, user.role, secret);
+    return c.json({ success: true, data: { token, user: { id: user.id, email: user.email, display_name: user.display_name, role: user.role, default_currency: user.default_currency, totp_enabled: true } } });
   }
 
   // Check 2FA
@@ -153,12 +204,15 @@ auth.post('/login', async (c) => {
         .bind(deviceToken, user.id, new Date().toISOString()).first();
       if (dt) {
         // Trusted device, skip 2FA
-        const secret = c.env.JWT_SECRET || 'bookkeeper-dev-secret-change-in-production';
+        const secret = jwtSecret(c.env);
         const token = await generateToken(user.id, user.role, secret);
         return c.json({ success: true, data: { token, user: { id: user.id, email: user.email, display_name: user.display_name, role: user.role, default_currency: user.default_currency } } });
       }
     }
     // Generate code
+    // Clean up expired/used codes for this email before issuing a new one
+    await c.env.DB.prepare('DELETE FROM verification_codes WHERE email = ? AND (expires_at < ? OR used = 1)')
+      .bind(email, new Date().toISOString()).run();
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const codeId = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 5 * 60000).toISOString();
@@ -173,7 +227,7 @@ auth.post('/login', async (c) => {
     return c.json({ success: true, data: { two_factor: true, email } });
   }
 
-  const secret = c.env.JWT_SECRET || 'bookkeeper-dev-secret-change-in-production';
+  const secret = jwtSecret(c.env);
   const token = await generateToken(user.id, user.role, secret);
   return c.json({ success: true, data: { token, user: { id: user.id, email: user.email, display_name: user.display_name, role: user.role, default_currency: user.default_currency } } });
 });
@@ -182,14 +236,22 @@ auth.post('/login', async (c) => {
 auth.post('/verify-2fa', async (c) => {
   const { email, code } = await c.req.json();
   if (!email || !code) return c.json({ success: false, error: '缺少邮箱或验证码' }, 400);
+  const ip = clientIp(c);
+  if (await isRateLimited(c.env.DB, email, ip, '2fa')) {
+    return c.json({ success: false, error: '验证码错误次数过多，请15分钟后再试' }, 429);
+  }
 
   const vc = await c.env.DB.prepare(
     'SELECT id FROM verification_codes WHERE email = ? AND code = ? AND expires_at > ? AND used = 0 ORDER BY created_at DESC LIMIT 1'
   ).bind(email, code, new Date().toISOString()).first();
 
-  if (!vc) return c.json({ success: false, error: '验证码无效或已过期' }, 401);
+  if (!vc) {
+    await recordFailure(c.env.DB, email, ip, '2fa');
+    return c.json({ success: false, error: '验证码无效或已过期' }, 401);
+  }
 
   await c.env.DB.prepare('UPDATE verification_codes SET used = 1 WHERE id = ?').bind((vc as any).id).run();
+  await clearFailures(c.env.DB, email, ip, '2fa');
 
   const user = await c.env.DB.prepare('SELECT id, email, display_name, role, default_currency FROM users WHERE email = ? AND disabled = 0').bind(email).first<{
     id: string; email: string; display_name: string; role: string; default_currency: string;
@@ -202,7 +264,7 @@ auth.post('/verify-2fa', async (c) => {
   await c.env.DB.prepare('INSERT INTO device_tokens (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)')
     .bind(crypto.randomUUID(), user.id, deviceToken, expiresAt).run();
 
-  const secret = c.env.JWT_SECRET || 'bookkeeper-dev-secret-change-in-production';
+  const secret = jwtSecret(c.env);
   const token = await generateToken(user.id, user.role, secret);
   return c.json({ success: true, data: { token, user: { id: user.id, email: user.email, display_name: user.display_name, role: user.role, default_currency: user.default_currency }, device_token: deviceToken } });
 });
@@ -213,7 +275,7 @@ authProtected.use('*', authMiddleware);
 
 authProtected.get('/me', async (c) => {
   const userId = getUserId(c);
-  const user = await c.env.DB.prepare('SELECT id, email, display_name, role, default_currency FROM users WHERE id = ?')
+  const user = await c.env.DB.prepare('SELECT id, email, display_name, role, default_currency, totp_enabled FROM users WHERE id = ?')
     .bind(userId).first();
   if (!user) return c.json({ success: false, error: '用户不存在' }, 404);
   return c.json(user);
@@ -230,28 +292,83 @@ authProtected.put('/profile', async (c) => {
     await c.env.DB.prepare('UPDATE users SET default_currency = ? WHERE id = ?').bind(default_currency, userId).run();
   }
   if (password && password.length >= 6) {
-    const encoder = new TextEncoder();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(password + 'bookkeeper-salt'));
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const passwordHash = await hashPassword(password);
     await c.env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(passwordHash, userId).run();
   }
 
-  const user = await c.env.DB.prepare('SELECT id, email, display_name, role, default_currency FROM users WHERE id = ?').bind(userId).first();
+  const user = await c.env.DB.prepare('SELECT id, email, display_name, role, default_currency, totp_enabled FROM users WHERE id = ?').bind(userId).first();
   return c.json(user);
 });
 
 // Delete own account
 authProtected.delete('/account', async (c) => {
   const userId = getUserId(c);
-  // Delete all user data
+  const user = await c.env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(userId).first<{ email: string }>();
+  // Remove R2 objects first, then all DB rows
+  const atts = await c.env.DB.prepare(
+    'SELECT a.r2_key FROM attachments a JOIN transactions t ON t.id = a.transaction_id WHERE t.user_id = ?'
+  ).bind(userId).all<{ r2_key: string }>();
+  await Promise.all((atts.results || []).map(a => c.env.R2.delete(a.r2_key)));
+
   await c.env.DB.prepare('DELETE FROM attachments WHERE transaction_id IN (SELECT id FROM transactions WHERE user_id = ?)').bind(userId).run();
   await c.env.DB.prepare('DELETE FROM transactions WHERE user_id = ?').bind(userId).run();
+  await c.env.DB.prepare(
+    'DELETE FROM deposit_interests WHERE deposit_id IN (SELECT id FROM fixed_deposits WHERE user_id = ?)'
+  ).bind(userId).run();
+  await c.env.DB.prepare('DELETE FROM fixed_deposits WHERE user_id = ?').bind(userId).run();
   await c.env.DB.prepare('DELETE FROM categories WHERE created_by = ?').bind(userId).run();
   await c.env.DB.prepare('DELETE FROM account_members WHERE account_owner_id = ? OR member_user_id = ?').bind(userId, userId).run();
+  await c.env.DB.prepare('DELETE FROM transaction_logs WHERE user_id = ?').bind(userId).run();
+  await c.env.DB.prepare('DELETE FROM device_tokens WHERE user_id = ?').bind(userId).run();
   await c.env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId).run();
+  if (user?.email) {
+    await c.env.DB.prepare('DELETE FROM verification_codes WHERE email = ?').bind(user.email).run();
+    await c.env.DB.prepare('DELETE FROM login_attempts WHERE email = ?').bind(user.email).run();
+  }
   await c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(userId).run();
   return c.json({ success: true });
+});
+
+// TOTP two-factor management (authenticated)
+authProtected.get('/totp/setup', async (c) => {
+  const userId = getUserId(c);
+  const user = await c.env.DB.prepare('SELECT email, totp_secret, totp_enabled FROM users WHERE id = ?')
+    .bind(userId).first<{ email: string; totp_secret: string | null; totp_enabled: number }>();
+  if (!user) return c.json({ success: false, error: '用户不存在' }, 404);
+  if (user.totp_enabled) return c.json({ success: false, error: 'TOTP 已开启，请先关闭' }, 400);
+  let secret = user.totp_secret;
+  if (!secret) {
+    secret = generateSecret();
+    await c.env.DB.prepare('UPDATE users SET totp_secret = ? WHERE id = ?').bind(secret, userId).run();
+  }
+  return c.json({ success: true, data: { secret, otpauth_url: otpauthUrl(secret, user.email) } });
+});
+
+authProtected.post('/totp/enable', async (c) => {
+  const userId = getUserId(c);
+  const { code } = await c.req.json();
+  if (!code) return c.json({ success: false, error: '缺少验证码' }, 400);
+  const user = await c.env.DB.prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ?')
+    .bind(userId).first<{ totp_secret: string | null; totp_enabled: number }>();
+  if (!user?.totp_secret) return c.json({ success: false, error: '请先获取密钥' }, 400);
+  if (user.totp_enabled) return c.json({ success: false, error: 'TOTP 已开启' }, 400);
+  const ok = await verifyTotp(user.totp_secret, String(code));
+  if (!ok) return c.json({ success: false, error: '验证码无效' }, 400);
+  await c.env.DB.prepare('UPDATE users SET totp_enabled = 1 WHERE id = ?').bind(userId).run();
+  return c.json({ success: true, data: { totp_enabled: true } });
+});
+
+authProtected.post('/totp/disable', async (c) => {
+  const userId = getUserId(c);
+  const { code } = await c.req.json();
+  if (!code) return c.json({ success: false, error: '缺少验证码' }, 400);
+  const user = await c.env.DB.prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ?')
+    .bind(userId).first<{ totp_secret: string | null; totp_enabled: number }>();
+  if (!user?.totp_secret) return c.json({ success: false, error: '尚未开启 TOTP' }, 400);
+  const ok = await verifyTotp(user.totp_secret, String(code));
+  if (!ok) return c.json({ success: false, error: '验证码无效' }, 400);
+  await c.env.DB.prepare('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?').bind(userId).run();
+  return c.json({ success: true, data: { totp_enabled: false } });
 });
 
 // Categories routes
@@ -386,11 +503,21 @@ transactions.post('/', async (c) => {
   }
 
   const id = crypto.randomUUID();
-  await c.env.DB.prepare(
-    `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, note, idempotency_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(id, userId, type, amount, currency, category_id, occurred_at, location_name || null, lat || null, lng || null,
-    is_reimbursable ? 1 : 0, needs_invoice ? 1 : 0, note || null, idempotency_key || null).run();
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO transactions (id, user_id, type, amount, currency, category_id, occurred_at, location_name, lat, lng, is_reimbursable, needs_invoice, note, idempotency_key)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(id, userId, type, amount, currency, category_id, occurred_at, location_name || null, lat || null, lng || null,
+      is_reimbursable ? 1 : 0, needs_invoice ? 1 : 0, note || null, idempotency_key || null).run();
+  } catch (e) {
+    // Concurrent duplicate with the same idempotency key: return the existing row.
+    if (idempotency_key) {
+      const dup = await c.env.DB.prepare('SELECT * FROM transactions WHERE idempotency_key = ? AND user_id = ?')
+        .bind(idempotency_key, userId).first();
+      if (dup) return c.json({ success: true, data: dup });
+    }
+    throw e;
+  }
 
   const tx = await c.env.DB.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();
   return c.json({ success: true, data: tx });
@@ -470,6 +597,11 @@ transactions.delete('/:id', async (c) => {
     if (!member) return c.json({ success: false, error: '无权删除' }, 403);
   }
 
+  // Remove attachments from R2 and DB before deleting the transaction
+  const atts = await c.env.DB.prepare('SELECT r2_key FROM attachments WHERE transaction_id = ?')
+    .bind(id).all<{ r2_key: string }>();
+  await Promise.all((atts.results || []).map(a => c.env.R2.delete(a.r2_key)));
+  await c.env.DB.prepare('DELETE FROM attachments WHERE transaction_id = ?').bind(id).run();
   await c.env.DB.prepare('DELETE FROM transactions WHERE id = ?').bind(id).run();
   return c.json({ success: true });
 });
@@ -514,46 +646,66 @@ summary.get('/', async (c) => {
     }
   }
 
+  // Full rate history for date-accurate conversion of historical transactions.
+  const history = await c.env.DB.prepare('SELECT date, target, rate FROM exchange_rates ORDER BY date ASC')
+    .all<{ date: string; target: string; rate: number }>();
+  const rateHistory = buildDateRateLookup(history.results || []);
+
   const ym = `${year}-${String(month).padStart(2, '0')}`;
   const txs = await c.env.DB.prepare(
     `SELECT * FROM transactions WHERE (user_id = ? OR user_id IN (SELECT account_owner_id FROM account_members WHERE member_user_id = ?))
      AND strftime('%Y-%m', occurred_at) = ?`
-  ).bind(userId, userId, ym).all<{ type: string; amount: number; currency: string; category_id: string }>();
+  ).bind(userId, userId, ym).all<{ type: string; amount: number; currency: string; category_id: string; occurred_at: string }>();
 
-  const convertToBase = (amount: number, fromCurrency: string): number => {
-    if (fromCurrency === baseCurrency) return amount;
-    const fromUsd = fromCurrency === 'USD' ? 1 : rateMap[fromCurrency];
-    const toUsd = baseCurrency === 'USD' ? 1 : rateMap[baseCurrency];
-    if (!fromUsd || !toUsd) return amount;
-    return (amount / fromUsd) * toUsd;
-  };
+  // Conversion using the exchange rate available on the transaction's own date
+  // (falls back to the most recent known rate when that date is missing).
+  const convertAtDate = (amount: number, fromCurrency: string, date: string): number =>
+    convertAmount(amount, fromCurrency, baseCurrency, rateHistory.lookupFor(date));
+
+  // Conversion at today's rates (used for current asset valuation).
+  const convertToBase = (amount: number, fromCurrency: string): number =>
+    convertAmount(amount, fromCurrency, baseCurrency, (target) => (target === 'USD' ? 1 : rateMap[target]));
 
   let totalExpense = 0;
   let totalIncome = 0;
   const expenseCatMap: Record<string, { name: string; total: number }> = {};
   const incomeCatMap: Record<string, { name: string; total: number }> = {};
 
+  const catRows = await c.env.DB.prepare('SELECT id, name FROM categories').all<{ id: string; name: string }>();
+  const catNames = new Map((catRows.results || []).map(c => [c.id, c.name]));
+
   const txResults = txs.results || [];
   for (const tx of txResults) {
-    const converted = convertToBase(tx.amount, tx.currency);
+    const converted = convertAtDate(tx.amount, tx.currency, tx.occurred_at.slice(0, 10));
     if (tx.type === 'expense') {
       totalExpense += converted;
       if (!expenseCatMap[tx.category_id]) {
-        const cat = await c.env.DB.prepare('SELECT name FROM categories WHERE id = ?').bind(tx.category_id).first<{ name: string }>();
-        expenseCatMap[tx.category_id] = { name: cat?.name || '未知', total: 0 };
+        expenseCatMap[tx.category_id] = { name: catNames.get(tx.category_id) || '未知', total: 0 };
       }
       expenseCatMap[tx.category_id].total += converted;
     } else {
       totalIncome += converted;
       if (!incomeCatMap[tx.category_id]) {
-        const cat = await c.env.DB.prepare('SELECT name FROM categories WHERE id = ?').bind(tx.category_id).first<{ name: string }>();
-        incomeCatMap[tx.category_id] = { name: cat?.name || '未知', total: 0 };
+        incomeCatMap[tx.category_id] = { name: catNames.get(tx.category_id) || '未知', total: 0 };
       }
       incomeCatMap[tx.category_id].total += converted;
     }
   }
 
-  const targetCurrencies = ['AED', 'CNY', 'USD'].filter(c => c !== baseCurrency);
+  // 累计结余（全部历史收支），供前端计算总资产，避免用当月结余导致数字失真
+  const allTxs = await c.env.DB.prepare(
+    `SELECT type, amount, currency FROM transactions WHERE (user_id = ? OR user_id IN (SELECT account_owner_id FROM account_members WHERE member_user_id = ?))`
+  ).bind(userId, userId).all<{ type: string; amount: number; currency: string }>();
+  let allTimeIncome = 0;
+  let allTimeExpense = 0;
+  for (const tx of allTxs.results || []) {
+    const converted = convertToBase(tx.amount, tx.currency);
+    if (tx.type === 'income') allTimeIncome += converted;
+    else allTimeExpense += converted;
+  }
+  const totalBalance = Math.round((allTimeIncome - allTimeExpense) * 100) / 100;
+
+  const targetCurrencies = ['AED', 'CNY', 'USD', 'EUR', 'GBP', 'JPY'].filter(c => c !== baseCurrency);
   const displayRates = targetCurrencies.map(target => {
     const baseToUsd = baseCurrency === 'USD' ? 1 : rateMap[baseCurrency];
     const usdToTarget = target === 'USD' ? 1 : rateMap[target];
@@ -564,12 +716,18 @@ summary.get('/', async (c) => {
     };
   }).filter(r => r.rate > 0);
 
+  // Always ensure AED→CNY is first if present
+  const aedCny = displayRates.find(r => r.from === 'AED' && r.to === 'CNY');
+  const others = displayRates.filter(r => !(r.from === 'AED' && r.to === 'CNY'));
+  const sorted = aedCny ? [aedCny, ...others] : displayRates;
+
   return c.json({
     success: true,
     data: {
       total_expense: Math.round(totalExpense * 100) / 100,
       total_income: Math.round(totalIncome * 100) / 100,
       balance: Math.round((totalIncome - totalExpense) * 100) / 100,
+      total_balance: totalBalance,
       base_currency: baseCurrency,
       expense_categories: Object.entries(expenseCatMap).map(([category_id, v]) => ({
         category_id, category_name: v.name, total: Math.round(v.total * 100) / 100,
@@ -577,7 +735,7 @@ summary.get('/', async (c) => {
       income_categories: Object.entries(incomeCatMap).map(([category_id, v]) => ({
         category_id, category_name: v.name, total: Math.round(v.total * 100) / 100,
       })),
-      exchange_rates: displayRates,
+      exchange_rates: sorted,
     },
   });
 });
@@ -774,23 +932,44 @@ attachments.post('/upload', async (c) => {
     return c.json({ success: false, error: '缺少文件或交易ID' }, 400);
   }
 
-  // Verify transaction belongs to user
-  const tx = await c.env.DB.prepare('SELECT id FROM transactions WHERE id = ? AND user_id = ?')
-    .bind(transactionId, userId).first();
+  // Validate: max 10MB per file, photos or PDF only
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'application/pdf']);
+  const ALLOWED_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'pdf']);
+  if (file.size > MAX_FILE_SIZE) {
+    return c.json({ success: false, error: '单个文件不能超过 10MB' }, 400);
+  }
+  const ext = (file.name?.split('.').pop() || '').toLowerCase();
+  if (!ALLOWED_TYPES.has(file.type) && !(file.type === '' && ALLOWED_EXTS.has(ext))) {
+    return c.json({ success: false, error: '仅支持照片或 PDF 文件' }, 400);
+  }
+
+  // Cap attachments per transaction
+  const attCount = await c.env.DB.prepare('SELECT COUNT(*) as count FROM attachments WHERE transaction_id = ?')
+    .bind(transactionId).first<{ count: number }>();
+  if ((attCount?.count || 0) >= 9) {
+    return c.json({ success: false, error: '每笔交易最多 9 个附件' }, 400);
+  }
+
+  // Verify transaction belongs to user or shared member
+  const tx = await c.env.DB.prepare(
+    `SELECT id FROM transactions WHERE id = ? AND (user_id = ?
+     OR user_id IN (SELECT account_owner_id FROM account_members WHERE member_user_id = ?))`
+  ).bind(transactionId, userId, userId).first();
   if (!tx) return c.json({ success: false, error: '交易记录不存在' }, 404);
 
   const id = crypto.randomUUID();
-  const ext = file.name?.split('.').pop() || 'jpg';
   const r2Key = `attachments/${userId}/${id}.${ext}`;
+  const mime = file.type || (ext === 'pdf' ? 'application/pdf' : 'image/jpeg');
 
   const buffer = await file.arrayBuffer();
   await c.env.R2.put(r2Key, buffer, {
-    httpMetadata: { contentType: file.type || 'image/jpeg' },
+    httpMetadata: { contentType: mime },
   });
 
   await c.env.DB.prepare(
     'INSERT INTO attachments (id, transaction_id, r2_key, original_name, content_type) VALUES (?, ?, ?, ?, ?)'
-  ).bind(id, transactionId, r2Key, file.name, file.type).run();
+  ).bind(id, transactionId, r2Key, file.name, mime).run();
 
   return c.json({ success: true, data: { id, r2_key: r2Key, original_name: file.name } });
 });
@@ -1106,7 +1285,7 @@ app.get('/api/backup/:filename', async (c) => {
   const token = c.req.query('token');
   if (!token) return c.json({ success: false, error: '未登录' }, 401);
   try {
-    const secret = new TextEncoder().encode(c.env.JWT_SECRET || 'bookkeeper-dev-secret-change-in-production');
+    const secret = new TextEncoder().encode(jwtSecret(c.env));
     const { payload } = await jwtVerify(token, secret);
     if ((payload.role as string) !== 'admin') return c.json({ success: false, error: '需要管理员权限' }, 403);
   } catch {

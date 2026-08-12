@@ -44,6 +44,7 @@ export interface UserInfo {
   display_name: string;
   role: UserRole;
   default_currency: Currency;
+  totp_enabled?: boolean;
 }
 
 export interface Category {
@@ -130,6 +131,8 @@ export interface SummaryResponse {
   total_expense: number;
   total_income: number;
   balance: number;
+  /** 累计结余（全部历史收入 - 支出），用于计算总资产 */
+  total_balance: number;
   base_currency: Currency;
   expense_categories: { category_id: string; category_name: string; total: number }[];
   income_categories: { category_id: string; category_name: string; total: number }[];
