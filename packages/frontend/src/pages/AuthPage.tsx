@@ -18,6 +18,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [twoFactorEmail, setTwoFactorEmail] = useState('');
   const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorMethod, setTwoFactorMethod] = useState<'email' | 'totp'>('email');
 
   const reset = () => {
     setEmail(''); setPassword(''); setDisplayName(''); setConfirmPassword('');
@@ -45,6 +46,7 @@ export default function AuthPage() {
       if (tab === 'login') {
         const res = await login(email, password);
         if (res?.two_factor) {
+          setTwoFactorMethod(res.method === 'totp' ? 'totp' : 'email');
           setTwoFactorEmail(res.email || email);
           setTwoFactorCode('');
           setError('');
@@ -94,14 +96,22 @@ export default function AuthPage() {
             if (!twoFactorCode) return;
             setLoading(true); setError('');
             try {
-              await verify2FA(twoFactorEmail, twoFactorCode);
+              if (twoFactorMethod === 'totp') {
+                await login(email, password, twoFactorCode);
+              } else {
+                await verify2FA(twoFactorEmail, twoFactorCode);
+              }
               window.location.href = '/';
             } catch (err: any) { setError(err.message || '验证失败'); }
             finally { setLoading(false); }
           }} className="space-y-4">
-            <p className="text-xs text-gray-500 dark:text-gray-500 text-center">验证码已发送至 {twoFactorEmail}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 text-center">
+              {twoFactorMethod === 'totp'
+                ? '请在身份验证器 App 中输入当前显示的 6 位验证码'
+                : `验证码已发送至 ${twoFactorEmail}`}
+            </p>
             <div>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">验证码</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{twoFactorMethod === 'totp' ? '动态验证码' : '验证码'}</p>
               <input type="text" inputMode="numeric" maxLength={6}
                 className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-3 text-center text-xl tracking-widest outline-none bg-white dark:bg-gray-900"
                 placeholder="000000" value={twoFactorCode} onChange={e => setTwoFactorCode(e.target.value)} />

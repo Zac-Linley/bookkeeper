@@ -79,6 +79,16 @@ export default function TransactionFormPage() {
   const dtRef = useRef<HTMLInputElement>(null);
   const submittingRef = useRef(false);
   const timeEdited = useRef(false);
+  const gpsLoadingRef = useRef(false);
+
+  // Auto-location for new transactions (silent, no overlay)
+  useEffect(() => {
+    if (!isEdit && !lat && !gpsLoadingRef.current) {
+      gpsLoadingRef.current = true;
+      setGpsLoading(true);
+      handleGetLocation().finally(() => setGpsLoading(false));
+    }
+  }, [isEdit]);
 
   // Load categories + recent
   useEffect(() => {
@@ -139,7 +149,7 @@ export default function TransactionFormPage() {
     });
   }, [existingAtts]);
 
-  const handleGetLocation = () => {
+  const handleGetLocation = async () => {
     if (!navigator.geolocation) { setError('浏览器不支持定位'); return; }
     setGpsLoading(true); setError('');
     navigator.geolocation.getCurrentPosition(
@@ -159,21 +169,33 @@ export default function TransactionFormPage() {
 
   const handleCamera = () => {
     const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; input.multiple = true;
+    input.type = 'file'; input.accept = 'image/*,application/pdf'; input.capture = 'environment'; input.multiple = true;
     input.onchange = (e: any) => addPendingFiles(e.target.files);
     input.click();
   };
 
   const handleGallery = () => {
     const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*'; input.multiple = true;
+    input.type = 'file'; input.accept = 'image/*,application/pdf'; input.multiple = true;
     input.onchange = (e: any) => addPendingFiles(e.target.files);
     input.click();
   };
 
   const addPendingFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const newFiles = Array.from(files);
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    const isAllowed = (f: File) => f.size <= MAX_FILE_SIZE && (f.type.startsWith('image/') || f.type === 'application/pdf');
+    const rejected = Array.from(files).filter(f => !isAllowed(f));
+    const valid = Array.from(files).filter(isAllowed);
+    const maxAdd = Math.max(0, 9 - (existingAtts.length + pendingFiles.length));
+    const accepted = valid.slice(0, maxAdd);
+    if (rejected.length > 0) {
+      setError(`${rejected.map(f => f.name).join('、')} 未添加：仅支持 10MB 以内的照片或 PDF`);
+    } else if (valid.length > maxAdd) {
+      setError('每笔交易最多 9 个附件');
+    }
+    if (accepted.length === 0) return;
+    const newFiles = accepted;
     setPendingFiles(prev => [...prev, ...newFiles]);
     const previews: Record<string, string> = {};
     newFiles.forEach((f, i) => { previews[`pending-${Date.now()}-${i}`] = URL.createObjectURL(f); });
@@ -301,10 +323,20 @@ export default function TransactionFormPage() {
               className="absolute inset-0 opacity-0 cursor-pointer" />
           </div>
 
-          <button type="button" onClick={handleGetLocation} disabled={gpsLoading}
-            className={`relative z-10 inline-flex items-center gap-1 border border-gray-200 dark:border-gray-700 rounded-full px-3 py-1.5 text-xs active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900 ${lat ? 'text-primary-600 border-primary-200 bg-primary-50' : 'text-gray-600 dark:text-gray-500'}`}>
-            {gpsLoading ? '⏳' : <IconMapPin size={14} stroke={1.5} />} {lat ? '已定位' : '定位'}
-          </button>
+          {isEdit ? (
+            <button type="button" onClick={handleGetLocation} disabled={gpsLoading}
+              className={`relative z-10 inline-flex items-center gap-1 border border-gray-200 dark:border-gray-700 rounded-full px-3 py-1.5 text-xs active:bg-gray-50 dark:active:bg-gray-800 dark:bg-gray-900 ${lat ? 'text-primary-600 border-primary-200 bg-primary-50' : 'text-gray-600 dark:text-gray-500'}`}>
+              {gpsLoading ? '⏳' : <IconMapPin size={14} stroke={1.5} />} {lat ? '已定位' : '定位'}
+            </button>
+          ) : (
+            gpsLoading ? (
+              <span className="inline-flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 py-1.5">⏳ 获取位置中...</span>
+            ) : lat ? (
+              <span className="inline-flex items-center gap-1 border border-green-200 dark:border-green-800 rounded-full px-3 py-1.5 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30">
+                <IconMapPin size={14} stroke={1.5} /> 已定位
+              </span>
+            ) : null
+          )}
 
           {type === 'expense' && (
             <>

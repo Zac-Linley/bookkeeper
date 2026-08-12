@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [chartTab, setChartTab] = useState<'expense' | 'income'>('expense');
   const [rateOpen, setRateOpen] = useState(false);
+  const [totalDeposits, setTotalDeposits] = useState(0);
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -24,6 +25,20 @@ export default function DashboardPage() {
   useEffect(() => {
     setLoading(true);
     api.getSummary({ year, month }).then(setSummary).finally(() => setLoading(false));
+    // Load deposits + rates for total assets calculation
+    Promise.all([api.getDeposits(), api.getExchangeRates()]).then(([ds, er]) => {
+      const deposits = ds || [];
+      const rates = (er as any)?.rates || (er as any)?.data?.rates || [];
+      const rateMap: Record<string, number> = {};
+      for (const r of rates) rateMap[r.target] = r.rate;
+      const base = user?.default_currency || 'AED';
+      const conv = (amt: number, from: string) => {
+        if (from === base || !rateMap[from] || !rateMap[base]) return amt;
+        return (amt / rateMap[from]) * rateMap[base];
+      };
+      const active = deposits.filter((d: any) => d.status === 'active');
+      setTotalDeposits(active.reduce((s: number, d: any) => s + conv(d.amount, d.currency), 0));
+    }).catch(() => {});
   }, [year, month]);
 
   const prevMonth = () => {
@@ -54,19 +69,30 @@ export default function DashboardPage() {
         <button onClick={nextMonth} className="text-gray-400 dark:text-gray-500"><IconChevronRight size={20} stroke={1.5} /></button>
       </div>
 
-      {/* Rate bar — collapsible */}
+      {/* Rate bar — collapsed trigger */}
       {summary?.exchange_rates && summary.exchange_rates.length > 0 && (
-        <div>
+        <div className="relative">
           <button onClick={() => setRateOpen(!rateOpen)}
-            className="w-full flex items-center gap-2 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-500">
+            className="w-full flex items-center gap-2 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
             <span className="font-medium">💱</span>
-            {summary.exchange_rates.slice(0, rateOpen ? 10 : 1).map(r => (
-              <span key={r.from + r.to}>1 {r.from} ≈ {r.rate.toFixed(4)} {r.to}</span>
-            ))}
-            {summary.exchange_rates.length > 1 && (
-              <IconChevronDown size={12} className={`ml-auto transition-transform ${rateOpen ? 'rotate-180' : ''}`} />
-            )}
+            <span>{summary.exchange_rates[0].from} → {summary.exchange_rates[0].to} ≈ {summary.exchange_rates[0].rate.toFixed(4)}</span>
+            <IconChevronDown size={12} className={`ml-auto transition-transform ${rateOpen ? 'rotate-180' : ''}`} />
           </button>
+          {rateOpen && (
+            <div className="absolute z-40 top-full mt-1 left-0 right-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-3 space-y-1.5"
+              onClick={e => e.stopPropagation()}>
+              {summary.exchange_rates.map(r => (
+                <div key={r.from + r.to} className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
+                  <span>1 {r.from}</span>
+                  <span className="font-medium">{r.rate.toFixed(4)} {r.to}</span>
+                </div>
+              ))}
+              <p className="text-[10px] text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-800">
+                数据来自 open.er-api.com · 每日更新
+              </p>
+            </div>
+          )}
+          {rateOpen && <div className="fixed inset-0 z-30" onClick={() => setRateOpen(false)} />}
         </div>
       )}
 
@@ -88,6 +114,21 @@ export default function DashboardPage() {
             {fmt(summary?.balance || 0)}
           </p>
           <p className="text-[9px] text-gray-400 dark:text-gray-500">等值 {base}</p>
+        </div>
+      </div>
+
+      {/* Total assets — standalone row */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-400 dark:text-gray-500">总资产</p>
+          <p className="text-[9px] text-gray-400 dark:text-gray-500">等值 {base}</p>
+        </div>
+        <p className="text-xl font-semibold text-primary-600 mt-1">
+          {fmt((summary?.total_balance || 0) + totalDeposits)}
+        </p>
+        <div className="flex items-center justify-between mt-1.5 text-[10px] text-gray-400 dark:text-gray-500">
+          <span>活期 {fmt(summary?.total_balance || 0)}</span>
+          <span>定存 {fmt(totalDeposits)}</span>
         </div>
       </div>
 

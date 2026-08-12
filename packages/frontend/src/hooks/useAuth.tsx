@@ -5,7 +5,7 @@ import type { UserInfo } from '@bookkeeper/shared';
 interface AuthContextType {
   user: UserInfo | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<any>;
+  login: (email: string, password: string, totpCode?: string) => Promise<any>;
   verify2FA: (email: string, code: string) => Promise<any>;
   register: (email: string, password: string, display_name: string) => Promise<void>;
   logout: () => void;
@@ -36,8 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [refreshUser]);
 
-  const login = async (email: string, password: string): Promise<any> => {
-    const res = await api.login({ email, password });
+  const login = async (email: string, password: string, totpCode?: string): Promise<any> => {
+    const res = await api.login({ email, password, totp_code: totpCode });
     if (res.token) {
       setToken(res.token);
       setUser(res.user!);

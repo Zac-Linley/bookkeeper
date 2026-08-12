@@ -45,4 +45,15 @@ export default defineConfig({
       '/api': 'http://localhost:8787',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          charts: ['recharts'],
+          icons: ['@tabler/icons-react'],
+        },
+      },
+    },
+  },
 });

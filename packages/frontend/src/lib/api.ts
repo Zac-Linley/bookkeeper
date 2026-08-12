@@ -39,11 +39,20 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 // Auth
 export const api = {
-  login: (data: { email: string; password: string }) => {
+  login: (data: { email: string; password: string; totp_code?: string }) => {
     const deviceToken = localStorage.getItem('device_token');
     const body = deviceToken ? { ...data, device_token: deviceToken } : data;
     return request<{ token?: string; user?: import('@bookkeeper/shared').UserInfo; two_factor?: boolean; email?: string }>('/auth/login', { method: 'POST', body: JSON.stringify(body) });
   },
+
+  getTotpSetup: () =>
+    request<{ secret: string; otpauth_url: string }>('/auth/totp/setup'),
+
+  enableTotp: (code: string) =>
+    request<{ totp_enabled: boolean }>('/auth/totp/enable', { method: 'POST', body: JSON.stringify({ code }) }),
+
+  disableTotp: (code: string) =>
+    request<{ totp_enabled: boolean }>('/auth/totp/disable', { method: 'POST', body: JSON.stringify({ code }) }),
 
   verify2FA: (data: { email: string; code: string }) =>
     request<{ token: string; user: import('@bookkeeper/shared').UserInfo; device_token?: string }>('/auth/verify-2fa', { method: 'POST', body: JSON.stringify(data) }),
