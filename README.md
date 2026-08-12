@@ -46,8 +46,8 @@ PWA 移动端记账应用，基于 Cloudflare 免费额度全栈部署，支持�
 
 | 模块 | 功能 |
 |------|------|
-| 认证 | 注册/登录（可控开关）、JWT、邮箱 2FA（Resend）、受信任设备免验证 |
-| 记账 | 收支 CRUD、类别网格选择、GPS 自动定位 + 反向地理编码、图片附件（R2 存储、拍照/相册、灯箱预览）、报销标记、开发票标记 |
+| 认证 | 注册/登录（可控开关）、JWT、邮箱 2FA（Resend）、TOTP 动态验证码（Google Authenticator 等）、受信任设备免验证、登录/注册频率限制 |
+| 记账 | 收支 CRUD、类别网格选择、GPS 自动定位 + 反向地理编码、图片/PDF 附件（R2 存储、单个 ≤10MB、每笔最多 9 个、拍照/相册、灯箱预览）、报销标记、开发票标记 |
 | 首页 | 月份切换、多币种汇总（统一换算）、可折叠汇率条、支出/收入环形图 + 图例、定存概览 |
 | 账单 | 日期范围筛选、关键字搜索、排序、CSV 导出、分类图标、修改记录追踪 |
 | 定存 | 多币种、4 种结息方式（到期/月结/季结/预付）、360 天计息、到期提现自动记账、统一货币统计 |
@@ -141,6 +141,10 @@ npx wrangler d1 execute bookkeeper-db --file=./migrations/0005_resend.sql --remo
 npx wrangler d1 execute bookkeeper-db --file=./migrations/0006_device_trust.sql --remote
 npx wrangler d1 execute bookkeeper-db --file=./migrations/0007_needs_invoice.sql --remote
 npx wrangler d1 execute bookkeeper-db --file=./migrations/0008_audit_log.sql --remote
+npx wrangler d1 execute bookkeeper-db --file=./migrations/0009_remove_visibility.sql --remote
+npx wrangler d1 execute bookkeeper-db --file=./migrations/0010_rate_limit.sql --remote
+npx wrangler d1 execute bookkeeper-db --file=./migrations/0011_indexes.sql --remote
+npx wrangler d1 execute bookkeeper-db --file=./migrations/0012_totp.sql --remote
 ```
 
 ### 5. 设置 JWT 密钥
@@ -149,6 +153,12 @@ npx wrangler d1 execute bookkeeper-db --file=./migrations/0008_audit_log.sql --r
 npx wrangler secret put JWT_SECRET
 # 输入一个随机字符串（如：openssl rand -hex 32 的输出）
 ```
+
+> **注意**：`wrangler.toml` 中**不要**再写 `JWT_SECRET = ""`，否则会遮蔽线上 secret 导致回退到不安全的默认密钥。本地开发时在 `packages/worker/.dev.vars` 中放一个开发用密钥（该文件已被 git 忽略）：
+>
+> ```bash
+> echo "JWT_SECRET=$(openssl rand -hex 32)" > packages/worker/.dev.vars
+> ```
 
 ### 6. 部署 Worker API
 
@@ -177,6 +187,8 @@ npx wrangler pages deploy dist --project-name bookkeeper
 3. 登录记账本 → 设置 → 管理后台 → 邮件配置
 4. 填入 Resend API Key 和发件邮箱
 5. 开启 2FA 并完成邮箱验证
+
+也可以不依赖邮件，在 **设置 → 账户信息 → 二次验证（TOTP）** 中用 Google Authenticator 等 App 扫码开启，登录时直接输入动态验证码。
 
 ### 9. 手机端使用
 
