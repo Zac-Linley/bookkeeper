@@ -482,6 +482,18 @@ transactions.get('/', async (c) => {
   return c.json({ success: true, data: rows.results, total: total?.count || 0, page: p, page_size: ps });
 });
 
+// Single transaction by id (owner or shared member)
+transactions.get('/:id', async (c) => {
+  const { id } = c.req.param();
+  const userId = getUserId(c);
+  const tx = await c.env.DB.prepare(
+    `SELECT t.* FROM transactions t WHERE t.id = ? AND (t.user_id = ?
+     OR t.user_id IN (SELECT account_owner_id FROM account_members WHERE member_user_id = ?))`
+  ).bind(id, userId, userId).first();
+  if (!tx) return c.json({ success: false, error: '记录不存在' }, 404);
+  return c.json({ success: true, data: tx });
+});
+
 transactions.post('/', async (c) => {
   const body = await c.req.json();
   const userId = getUserId(c);

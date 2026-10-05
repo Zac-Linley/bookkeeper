@@ -114,26 +114,29 @@ export default function TransactionFormPage() {
 
   // Edit mode — load existing data
   useEffect(() => {
-    if (id) {
-      api.getTransactions().then((txs) => {
-        const t = Array.isArray(txs) ? txs.find(tx => tx.id === id) : null;
-        if (t) {
-          setType(t.type);
-          setAmount(String(t.amount));
-          setCurrency(t.currency as Currency);
-          setCategoryId(t.category_id);
-          setOccurredAt((() => { const d = new Date(t.occurred_at); const p = (n: number) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })());
-          setLocationName(t.location_name || '');
-          setLat(t.lat || undefined);
-          setLng(t.lng || undefined);
-          setIsReimbursable(!!t.is_reimbursable);
-          setNeedsInvoice(!!t.needs_invoice);
-          setNote(t.note || '');
-          api.listAttachments(id).then(atts => setExistingAtts(atts || []));
-          api.getTransactionLogs(id).then(logs => setTxLogs(logs || []));
-        }
+    if (!id) return;
+    let cancelled = false;
+    api.getTransaction(id)
+      .then((t) => {
+        if (cancelled || !t) return;
+        setType(t.type);
+        setAmount(String(t.amount));
+        setCurrency(t.currency as Currency);
+        setCategoryId(t.category_id);
+        setOccurredAt((() => { const d = new Date(t.occurred_at); const p = (n: number) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })());
+        setLocationName(t.location_name || '');
+        setLat(t.lat || undefined);
+        setLng(t.lng || undefined);
+        setIsReimbursable(!!t.is_reimbursable);
+        setNeedsInvoice(!!t.needs_invoice);
+        setNote(t.note || '');
+        api.listAttachments(id).then(atts => { if (!cancelled) setExistingAtts(atts || []); }).catch(() => {});
+        api.getTransactionLogs(id).then(logs => { if (!cancelled) setTxLogs(logs || []); }).catch(() => {});
+      })
+      .catch((err: any) => {
+        if (!cancelled) setError(err?.message || '记录加载失败');
       });
-    }
+    return () => { cancelled = true; };
   }, [id]);
 
   useEffect(() => {

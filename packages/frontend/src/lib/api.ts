@@ -88,6 +88,9 @@ export const api = {
     return { data: json.data as import('@bookkeeper/shared').Transaction[], total: json.total as number };
   },
 
+  getTransaction: (id: string) =>
+    request<import('@bookkeeper/shared').Transaction>(`/transactions/${id}`),
+
   createTransaction: (data: import('@bookkeeper/shared').CreateTransactionRequest) =>
     request<import('@bookkeeper/shared').Transaction>('/transactions', { method: 'POST', body: JSON.stringify(data) }),
 
